@@ -2,6 +2,7 @@ import tkinter as tk
 import math
 from fractions import Fraction
 
+#positive angle is clockwise, negative angle is anti-clockwise
 class SteeringWheelGUI:
     def __init__(self, root):
         self.root = root
