@@ -1,0 +1,47 @@
+flowchart TD
+    A[Application Starts] --> B[Initialise H5VideoPlayer]
+    B --> C[create_frames]
+    B --> D[create_widgets]
+    D --> E1[create_info_display]
+    D --> E[create_video_controls]
+    D --> F[create_scrollbar]
+    D --> G[create_video_display]
+    D --> I[create_telemetry_selector]
+    D --> J[create_visualisation_options]
+    
+    K[User clicks Load H5 File] --> L[load_h5_file]
+    L --> M[load_camera_file]
+    L --> N[load_log_file]
+    L --> O[update_ui_after_loading]
+    O --> P[display_frame]
+    O --> Q[update_telemetry_display]
+    
+    R[User clicks Play] --> S[play_video]
+    S --> T[play_loop]
+    T --> P
+    
+    U[User clicks Pause] --> V[pause_video]
+    
+    W[User clicks Reset] --> X[reset_video]
+    X --> P
+    
+    Y[User moves slider] --> Z[on_slider_change]
+    Z --> P
+    
+    AA[User selects telemetry type] --> Q
+    Q --> AB[create_telemetry_frame]
+    Q --> AC[update_telemetry_values]
+    
+    AC --> AD[get_aligned_data]
+    P --> AC
+    
+    AE[User toggles visualisation] --> AF[update_visualization]
+    
+    AG[User selects Graph] --> AH[show_graph_not_implemented]
+    AH --> AI[show_error_message]
+    
+    AJ[User toggles annotations] --> AK[toggle_annotations]
+    AK --> AI
+    
+    P --> AL[update frame display]
+    P --> AM[update information display]
