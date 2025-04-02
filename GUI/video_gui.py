@@ -6,6 +6,7 @@ import os
 from PIL import Image, ImageTk
 import time
 import threading
+import steering_trajectory_calculator as stc
 
 class H5VideoPlayer:
     def __init__(self, root):
@@ -159,8 +160,9 @@ class H5VideoPlayer:
         #annotation toggle (next to video)
         self.annotation_var = tk.BooleanVar(value=False)
         self.annotation_toggle = ttk.Checkbutton(
-            self.video_display_frame, text="Show Annotations", 
+            self.video_display_frame, text="Show Steering Trajectory", 
             variable=self.annotation_var, command=self.toggle_annotations)
+        
         self.annotation_toggle.pack(side=tk.RIGHT, padx=5)
 
     def create_info_display(self):
@@ -267,7 +269,11 @@ class H5VideoPlayer:
         for item, label in self.telemetry_values.items():
             if item in aligned_data:
                 value = aligned_data[item]
-                # Format numeric values to 2 decimal places
+
+                if item == "steering_angle":
+                    value = value / 10.0
+
+                #Format numeric values to 2 decimal places
                 if isinstance(value, (float, np.float32, np.float64)):
                     formatted_value = f"{value:.2f}"
                 else:
@@ -288,10 +294,13 @@ class H5VideoPlayer:
         self.viz_choice_var.set("Value")
 
     def toggle_annotations(self):
-        #handle annotation toggle
+        #handle annotation toggle - now displays trajectory prediction
         if self.annotation_var.get():
-            self.show_error_message("Annotations not implemented yet")
-            self.annotation_var.set(False)
+            #annotations enabled, redisplay current frame with annotations
+            self.display_frame(self.current_frame_idx)
+        else:
+            #annotations disabled, redisplay current frame without annotations
+            self.display_frame(self.current_frame_idx)
 
     def show_error_message(self, message):
         #generic error message function
@@ -330,7 +339,7 @@ class H5VideoPlayer:
             #check if it's a camera file
             if "camera" in directory.lower():
                 camera_path = file_path
-                log_path = file_path.replace("camera", "log")
+                log_path = file_path.replace("camera", "log") #assumes dataset folder set up has 'logs' folder in it too
             else:
                 #try to find associated log file
                 camera_path = file_path
@@ -473,6 +482,19 @@ class H5VideoPlayer:
             
         #get frame data and transpose to (height, width, channels)
         frame = self.frames[idx][:].transpose(1, 2, 0)
+
+        #add annotations if enabled
+        if self.annotation_var.get():
+            #get aligned telemetry data for annotations
+            aligned_data = self.get_aligned_data(idx)
+            
+            #only draw if we have steering angle and speed data
+            if 'steering_angle' in aligned_data and 'speed' in aligned_data:
+                true_angle = float(aligned_data['steering_angle'])
+                speed = float(aligned_data['speed'])
+                
+                #draw annotations on frame using the trajectory calculator
+                frame = stc.draw_trajectory_annotation(frame, speed, true_angle)
         
         #convert to PIL Image
         img = Image.fromarray(np.uint8(frame))
