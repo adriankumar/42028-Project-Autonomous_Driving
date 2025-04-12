@@ -259,6 +259,6 @@ comma_ai_preprocessed = preprocess_comma_ai_data(comma_ai_data)
 #     11: 'Steering Torque',  -> steering angle rate in deg/s
 #     12: 'Times'             -> timestamps in seconds
 # }
-plot_telemetry(comma_ai_preprocessed['train'][0]['telemetry'], 10, 'Steering angle')
+plot_telemetry(comma_ai_preprocessed['train'][0]['telemetry'], 7, 'speed')
 
 
