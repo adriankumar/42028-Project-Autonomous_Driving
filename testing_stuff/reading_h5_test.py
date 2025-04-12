@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 # Once this code successfully runs, you can use the 'video_display.py' file
 
 # Open the files
-camera_file = h5py.File('dataset/camera/2016-06-08--11-46-01.h5', 'r')
-log_file = h5py.File('dataset/log/2016-06-08--11-46-01.h5', 'r')
+camera_file = h5py.File(r'dataset\Comma_ai_dataset\train\camera\2016-06-08--11-46-01.h5', 'r')
+log_file = h5py.File(r'dataset\Comma_ai_dataset\train\labels\2016-06-08--11-46-01.h5', 'r')
 
 # See what's inside
 print("Camera file contents:")

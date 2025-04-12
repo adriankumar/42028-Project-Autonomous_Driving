@@ -1,7 +1,4 @@
-import h5py #import hdf5 library
-import os #import os library for operating system dependent functionality eg path joining
-import copy #import copy library for copying objects
-import sys #import sys library for system-specific parameters and functions
+import os, copy, sys 
 
 #========== dataset paths ==========
 comma_ai_path = "././dataset/Comma_ai_dataset" #path to comma ai dataset
