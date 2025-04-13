@@ -1,4 +1,4 @@
-from data_reading import comma_ai_data, bdd100k_data
+from data_reading import comma_ai_data
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
