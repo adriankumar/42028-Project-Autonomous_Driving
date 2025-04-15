@@ -339,7 +339,7 @@ class H5VideoPlayer:
             #check if it's a camera file
             if "camera" in directory.lower():
                 camera_path = file_path
-                log_path = file_path.replace("camera", "log") #assumes dataset folder set up has 'logs' folder in it too
+                log_path = file_path.replace("camera", "labels") #assumes dataset folder set up has 'logs' folder in it too
             else:
                 #try to find associated log file
                 camera_path = file_path
