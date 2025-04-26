@@ -6,3 +6,5 @@
 *.txt
 *.cache
 *.yaml
+*.pt
+*.csv
