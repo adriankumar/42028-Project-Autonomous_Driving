@@ -1,11 +1,14 @@
 import numpy as np
 from skimage import transform as tf
 
+#calculations and display is taken exactly from comma ai's dataset information from the official github: https://github.com/commaai/research/blob/master/view_steering_model.py;
+#however comments to explain in detail the calculations are still provided by us
+
+
 #perspective transformation matrices
 #these are calibrated points for the specific camera setup
 #these won't work for other video data because the coordinate mapping of the road and the specific camera system is unknown
 #so how these values were obtained, we don't know, they are fixed for the comma.ai dataset
-
 rsrc = [
     [43.45456230828867, 118.00743250075844],
     [104.5055617352614, 69.46865203761757],
@@ -60,8 +63,8 @@ def draw_path(img, path_x, path_y, colour):
 def calc_curvature(speed, steering_angle, angle_offset=0):
     deg_to_rad = np.pi/180.
     slip_factor = 0.0014  #slip factor from vehicle data
-    steer_ratio = 15.3    #steering ratio for the vehicle
-    wheel_base = 2.67     #vehicle wheelbase in meters
+    steer_ratio = 15.3  #steering ratio for the vehicle
+    wheel_base = 2.67  #vehicle wheelbase in meters
     
     steering_angle_rad = (steering_angle - angle_offset) * deg_to_rad #convert to radians for calculation
     curvature = steering_angle_rad/(steer_ratio * wheel_base * (1. + slip_factor * speed**2))
@@ -79,34 +82,24 @@ def calc_path_offset(speed, steering_angle, distances, angle_offset=0):
 def draw_true_path(img, speed, steering_angle):
     distances = np.arange(0., 50.1, 0.5) #distances ahead in 0.5m increments
     offsets, _ = calc_path_offset(speed, -steering_angle, distances)
-    draw_path(img, distances, offsets, (0, 0, 255)) #Blue colour
+    draw_path(img, distances, offsets, (0, 0, 255)) #blue colour
 
 #draw the path simulated by the steering wheel gui, which still uses the same current speed that true labels does
 def draw_simulated_path(img, speed, steering_angle):
     distances = np.arange(0., 50.1, 0.5) #distances ahead in 0.5m increments
     offsets, _ = calc_path_offset(speed, -steering_angle, distances)
-    draw_path(img, distances, offsets, (0, 255, 0)) #Green colour
+    draw_path(img, distances, offsets, (0, 255, 0)) #green colour
 
-#read steering angle from the file
-def read_steering_angle_from_file(file_path):
-    try:
-        with open(file_path, 'r') as f:
-            angle = float(f.read().strip())
-        return angle
-    except (IOError, ValueError):
-        return 0.0  #default value if value is not written
-
-#draw the annotated frame and return it, its only called when the annotation radio button is clicked
-#draws both ground truth and simulated trajectories
-def draw_trajectory_annotation(frame, speed, true_angle, file_path="./testing_stuff/angle_output/steering_angle.txt"):
+#draw the annotated frame and return it, it's only called when the trajectory display is enabled
+#draws both ground truth and simulated trajectories on the frame
+def draw_trajectory_annotation(frame, speed, true_angle, sim_angle):
     #make a copy of the frame to avoid modifying the original
     annotated_frame = frame.copy()
     
     #draw true path (blue)
     draw_true_path(annotated_frame, speed, true_angle)
     
-    #read simulated steering angle and draw simulated path (green)
-    sim_angle = read_steering_angle_from_file(file_path)
+    #draw simulated path (green)
     draw_simulated_path(annotated_frame, speed, sim_angle)
     
     return annotated_frame

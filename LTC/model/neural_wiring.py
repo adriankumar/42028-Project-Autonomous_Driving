@@ -1,5 +1,6 @@
 #This class defines the neural wiring connectivity. 
 #We specifically implement the NeuralCircuitPolicy (NCP) wiring which defines 'inter', 'command' and 'motor' neuron types; alternative options are dense connectivity and random sparse connectivity which are not implemented here
+#implementation was made from offical github https://github.com/mlech26l/ncps/tree/master/ncps but accomodated to our understanding
 import numpy as np
 
 #---------------------------
@@ -20,7 +21,7 @@ class NeuronSynapseWiring:
     #get number of neurons in wiring; use exclude_sensory=True to get internal neuron count
     def get_total_neurons(self, exclude_sensory=False):
         if not self.is_built():
-            raise ValueError(f"Wiring has no sensory neurons, initialise wiring with input dimension using x() method ~ NeuronWiring class")
+            raise ValueError(f"Wiring has no sensory neurons, initialise wiring with input dimension using build() method ~ NeuronWiring class")
 
         if exclude_sensory:
             return self.internal_neuron_total #return only inter command and motor neuron count
@@ -114,18 +115,18 @@ class NeuralCircuitPolicy(NeuronSynapseWiring):
     def __init__(self, 
                  inter_neurons, #number of interneurons (feature extractors, sensory neurons -> inter neurons)
                  command_neurons, #number of command neurons (recurrent layer; memory/context; inter neurons -> command neurons)
-                 motor_neurons, #number of motor neurons (output layer (i.e steering angle or new hidden state))
+                 motor_neurons, #number of motor neurons (output layer (i.e steering angle, car accel, or new hidden state))
                  outgoing_sensory_neurons, #number of neurons from sensory to inter neurons
                  outgoing_inter_neurons, #number of neurons from inter to command neurons
                  num_of_recurrent_connections, #number of recurrent connections in command neuron layer
                  outgoing_command_neurons, #number of incoming synapses from command to motor neurons
                  seed=24573471): #random seed for producing wiring/connectivity
         
-        neuron_total = inter_neurons + command_neurons + motor_neurons
+        neuron_total = inter_neurons + command_neurons + motor_neurons #neuron total is 'internal_total_neurons' which excludes sensory (because sensory acts as the 'input layer')
 
         super(NeuralCircuitPolicy, self).__init__(internal_total_neurons=neuron_total) #initialise neuron adjacency matrix
-        self._set_output_dim(motor_neurons) #set output dim = motor neurons; usually 1
-        self.rndm_sd = np.random.RandomState(seed=seed) #preproducable random generator for neuron connectivity
+        self._set_output_dim(motor_neurons) #set output dim = motor neurons; usually 1 or 2
+        self.rndm_sd = np.random.RandomState(seed=seed) #reproducable random generator for neuron connectivity
 
         self._store_internal_neurons(inter_neurons, command_neurons, motor_neurons) #store individual counts into class variables
 
@@ -160,7 +161,7 @@ class NeuralCircuitPolicy(NeuronSynapseWiring):
         self._validate_individual_connectivity(self.inter_fanout, self.num_command_neurons, src="Interneurons", dst="Command Neurons") #inter fanout must be <= number of command neurons
         self._validate_individual_connectivity(self.command_fanout, self.num_command_neurons, src="Interneurons", dst="Command Neurons") #command fanout must be <= number of command neurons
         
-    #create indicies for neuron types in adjacency matrix; motor starts at the beginning because its computationally faster to access its elements during training and inference
+    #create indicies for neuron types in adjacency matrix; motor starts at the beginning because its computationally faster to access its elements during training and inference and only has 1-2 usually
     def _create_neuron_indicies(self):
         motor_indicies = range(self.num_motor_neurons)
         command_indicies = range(self.num_motor_neurons, (self.num_motor_neurons + self.num_command_neurons))
@@ -189,7 +190,7 @@ class NeuralCircuitPolicy(NeuronSynapseWiring):
         #initialise wiring
         super().build(input_shape) #input_dim 
         self.num_sensory_neurons = self.input_dim #which comes from NeuronWiring
-        self.sensory_neurons = [i for i in range(0, self.num_sensory_neurons)] #even tho motor indicies start from 0, this is not included in the neuron adjacency matrix so it also starts from 0
+        self.sensory_neurons = [i for i in range(0, self.num_sensory_neurons)] #even tho motor indicies start from 0, sensory neurons have their own adjacency matrix so also start from 0
 
         #after sensory neurons, build the connections; sensory -> inter -> command -> motor
         self.build_sensory_to_inter_connections()

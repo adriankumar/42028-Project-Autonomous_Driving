@@ -1,7 +1,8 @@
+#implementation was made from offical github https://github.com/mlech26l/ncps/tree/master/ncps but accomodated to our understanding
 import torch 
 import torch.nn as nn
 import numpy as np 
-from LTC.neural_wiring import NeuralCircuitPolicy as ncp
+
 #---------------------------
 # Liquid Time-Constant Cell - Defines a forward pass for a single time step utilising the NCP neural wiring; any adjustments to forward pass gets modified here
 #---------------------------
@@ -136,7 +137,7 @@ class LTCCell(nn.Module):
             self.params["output_bias"] = self.add_weight(name="output_bias", init_value=torch.zeros((self.motor_size,)))
 
 #---------------------------forward pass/layers---------------------------
-    def forward(self, x, state, time_constant):
+    def forward(self, x, state, time_constant): #single time step, so x is shape batch x feature_dim
         #map input
         x_transformed = self.map_input(x)
 
@@ -148,6 +149,7 @@ class LTCCell(nn.Module):
 
         return outputs, new_hidden_state #return both
 
+    #ODE Solver - computes neural evolution, where hidden state (the internal neurons) evolve according to neural ODE
     def fused_solver(self, x_transformed, state, time_constant):
         current_state = state 
 
@@ -174,6 +176,7 @@ class LTCCell(nn.Module):
             synaptic_numerator = numerator + sensory_numerator
             synaptic_denominator = denominator + sensory_denominator
 
+            #neuron parameters broadcasted on synatpic weights, ODE solver
             dh = scaled_capacitance * current_state + self.make_positive(self.params['leakage_conductance']) * self.params['reverse_potential'] + synaptic_numerator
             dt = scaled_capacitance + self.make_positive(self.params['leakage_conductance']) + synaptic_denominator 
 
@@ -181,12 +184,14 @@ class LTCCell(nn.Module):
         
         return current_state
 
+    #compute the synpatic weights - the intuition here is you use fixed parameters to construct an non-fixed synaptic weight between neurons, this is where the liquid part comes with changing 'weights'
     def compute_synapse(self, input, weight, mu, sigma, sparsity_mask, reverse_potential):
         synaptic_activation = (weight * self.sigmoid_gate(input, mu, sigma)) * sparsity_mask 
         synaptic_reverse_potential = synaptic_activation * reverse_potential
 
-        return torch.sum(synaptic_reverse_potential, dim=1), torch.sum(synaptic_activation, dim=1) #numerator, denominator
+        return torch.sum(synaptic_reverse_potential, dim=1), torch.sum(synaptic_activation, dim=1) #numerator, denominator respectively
 
+    #gating function to process input with synaptic weight calculation
     def sigmoid_gate(self, x, mu, sigma): #used in both sensory gating and synaptic gating
         x = torch.unsqueeze(x, -1)
         mu = x - mu

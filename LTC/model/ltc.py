@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
-import numpy as np
-from LTC.ltccell import LTCCell
+from LTC.model.ltccell import LTCCell
+
+#NOTE: this file is not used, it's to demonstrate and understand how to build a full LTC model (defining the forward method over the ltccell for sequential processing)
+#Additionally, this forward input assumes batch major format and not time major format, but our convLTC uses time major format
+
 #---------------------------
 # Liquid Time-Constant Model - Develops full LTC model, any adjustments to layer wise architecture gets modified here; assumes batch first format for training
 #---------------------------
@@ -20,7 +23,7 @@ class LTC(nn.Module):
         self.wiring = wiring
         self.return_sequences = return_sequences
 
-        #any pre-processing layers get added here
+        #any pre-processing layers get added here or can be defined outside of this class definition, encapsulated in another class
 
         #initialise ltc cell with wiring
         self.ltc_cell = LTCCell(
@@ -59,8 +62,7 @@ class LTC(nn.Module):
             readout = output
         
         return readout, hidden_state
-        
-
-        
-
-
+    
+    @property
+    def cell(self):
+        return self.ltc_cell

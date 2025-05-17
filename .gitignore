@@ -8,3 +8,5 @@
 *.yaml
 *.pt
 *.csv
+*.npz
+*.json
