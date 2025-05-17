@@ -25,40 +25,40 @@ metadata_file = r"e170_training_metadata.json"
 
 #load model
 model = load_model(model_path, device=device)
-vis.plot_adjacency_matrices(model.wiring, save_path=f"{root_img_path}\\adjacency_matrices.png")
-vis.view_neural_wiring(model.wiring, save_path=f"{root_img_path}\\LTC_neural_structure.png", show=False)
+# vis.plot_adjacency_matrices(model.wiring, save_path=f"{root_img_path}\\adjacency_matrices.png")
+# vis.view_neural_wiring(model.wiring, save_path=f"{root_img_path}\\LTC_neural_structure.png", show=False)
 
-print("\nplotting training metrics...")
-plot_loss(metrics_path, metrics_file)
-plot_detailed_metrics(metrics_path, metrics_file, metadata_file)
+# print("\nplotting training metrics...")
+# plot_loss(metrics_path, metrics_file)
+# plot_detailed_metrics(metrics_path, metrics_file, metadata_file)
 
 print("preparing for model evaluation")
 
 #training data eval
-# train_0_test, labels_0_test, speed_0_test = preprocess.load_sample(
-#     datasplit_path=train_path,
-#     file_name=preprocess.train_files[0],
+train_0_test, labels_0_test, speed_0_test = preprocess.load_sample(
+    datasplit_path=train_path,
+    file_name=preprocess.train_files[0],
+    telemetry_labels=labels,
+    normalise=True,
+    start=5260,
+    end=5500,
+    extract_speed_feature=True
+)
+
+# test_0_test, labels_0_test, speed_0_test = preprocess.load_sample(
+#     datasplit_path=test_path,
+#     file_name=preprocess.test_files[0], #smallest one
 #     telemetry_labels=labels,
 #     normalise=True,
-#     start=4742,
+#     start=5770,
 #     end=6000,
 #     extract_speed_feature=True
 # )
 
-test_0_test, labels_0_test, speed_0_test = preprocess.load_sample(
-    datasplit_path=test_path,
-    file_name=preprocess.test_files[0], #smallest one
-    telemetry_labels=labels,
-    normalise=True,
-    start=5770,
-    end=8000,
-    extract_speed_feature=True
-)
-
 #frame-by-frame inference with speed data
 predictions, hidden_states = preprocess.process_video_inference(
     model=model,
-    video_data=test_0_test, #replace with either train_0_test or test_0_test
+    video_data=train_0_test, #replace with either train_0_test or test_0_test
     device=device,
     speed_data=speed_0_test,
     seq_len=1,  #process one frame at a time
@@ -76,12 +76,12 @@ plot_predictions(predictions, labels_0_test)
 # plot_hidden_state_activity(hidden_states, "ltc hidden state activity")
 
 # #visualise saliency map for a subset of frames
-tensor_test = torch.tensor(test_0_test[700:705], dtype=torch.float32, device=device)
-tensor_test = tensor_test.permute(0, 2, 3, 1).unsqueeze(0) #[1, seq, H, W, C]
+# tensor_test = torch.tensor(test_0_test[700:705], dtype=torch.float32, device=device)
+# tensor_test = tensor_test.permute(0, 2, 3, 1).unsqueeze(0) #[1, seq, H, W, C]
 
 #saliency via visual backprop
 #generate saliency maps with the proper input shape
-saliency_maps = visualbackprop(model, tensor_test, device=device)
+# saliency_maps = visualbackprop(model, tensor_test, device=device)
 
 #plot the saliency maps
-plot_saliency_maps(tensor_test, saliency_maps, alpha=1.0, save_path=f"{root_img_path}\\saliency_map_visual_backprop.png")
+# plot_saliency_maps(tensor_test, saliency_maps, alpha=1.0, save_path=f"{root_img_path}\\saliency_map_visual_backprop.png")
