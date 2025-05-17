@@ -16,12 +16,12 @@ train_path = r"datasets\Comma_ai_dataset\train"
 test_path = r"datasets\Comma_ai_dataset\test"
 
 
-model_path = r"LTC\checkpoint_weights\model_epoch150.pt"
+model_path = r"LTC\checkpoint_weights\model_epoch170.pt"
 root_img_path = r"model_images"
 
 metrics_path = r"LTC\training_metrics"
-metrics_file = r"e150_training_loss.npz"
-metadata_file = r"e150_training_metadata.json"
+metrics_file = r"e170_training_loss.npz"
+metadata_file = r"e170_training_metadata.json"
 
 #load model
 model = load_model(model_path, device=device)

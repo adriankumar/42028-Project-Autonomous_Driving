@@ -4,7 +4,7 @@ from data_preprocessing.model_utilities import load_model
 import cv2
 
 #hardcoded path to model
-MODEL_PATH = r"LTC\checkpoint_weights\model_epoch150.pt"
+MODEL_PATH = r"LTC\checkpoint_weights\model_epoch70.pt"
 #sequence length for model input
 SEQ_LEN = 1  #change this to experiment with different sequence lengths
 #device for model inference

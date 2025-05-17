@@ -62,9 +62,24 @@ def load_model(checkpoint_path, device=None):
     model = model.to(device)
     
     print(f"Model loaded from {checkpoint_path} (epoch {checkpoint['epoch']})")
-    non_zero_params = sum(param.count_nonzero() for param in model.parameters())
-    total_params = sum(param.numel() for param in model.parameters())
-    print(f"model has {non_zero_params}/{total_params} non-zero parameters")
+    print("model constructed")
+    print(f"Number of total neurons: {model.ltc_cell.total_neurons}")
+    print(f"Number of internal neurons: {model.ltc_cell.internal_neuron_size}")
+
+    #count total parameters
+    total_params = sum(p.numel() for p in model.parameters())
+    conv_params = sum(p.numel() for name, p in model.named_parameters() if 'conv_head' in name)
+    speed_params = sum(p.numel() for name, p in model.named_parameters() if 'speed_embedding' in name)
+    ltc_params = total_params - conv_params - speed_params
+
+    print(f"total model parameters: {total_params:,}")
+    print(f"conv head parameters: {conv_params:,} ({conv_params/total_params*100:.1f}%)")
+
+    print(f"speed embedding parameters: {speed_params:,} ({speed_params/total_params*100:.1f}%)")
+    print(f"ltc parameters: {ltc_params:,} ({ltc_params/total_params*100:.1f}%)")
+    # non_zero_params = sum(param.count_nonzero() for param in model.parameters())
+    # total_params = sum(param.numel() for param in model.parameters())
+    # print(f"model has {non_zero_params}/{total_params} non-zero parameters")
     
     return model
 
