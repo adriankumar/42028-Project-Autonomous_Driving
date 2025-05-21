@@ -1,5 +1,4 @@
-# from gui_alt.gui_main import VideoGui
-from gui_efficient.gui_main import VideoGui
+from gui_alt.gui_main import VideoGui
 # from gui.gui_main import VideoGui #uncomment this and comment the above import to utilise the initial GUI application
 import tkinter as tk
 

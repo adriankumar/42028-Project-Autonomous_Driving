@@ -12,7 +12,7 @@ use_speed = True  #control flag for using speed data
 #set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 train_path = r"datasets\Comma_ai_dataset\train"
-# val_path = r"datasets\Comma_ai_dataset\val"
+val_path = r"datasets\Comma_ai_dataset\val"
 test_path = r"datasets\Comma_ai_dataset\test"
 
 
@@ -34,46 +34,96 @@ model = load_model(model_path, device=device)
 
 print("preparing for model evaluation")
 
-#training data eval
-train_0_test, labels_0_test, speed_0_test = preprocess.load_sample(
-    datasplit_path=train_path,
-    file_name=preprocess.train_files[0],
-    telemetry_labels=labels,
-    normalise=True,
-    start=5260,
-    end=5500,
-    extract_speed_feature=True
-)
+#load validation/test files
+def load_segment(start, end, split_path, filename):
+    video, tel_labels, speed = preprocess.load_sample(
+        datasplit_path=split_path,
+        file_name=filename,
+        telemetry_labels=labels,
+        normalise=True,
+        start=start,
+        end=end,
+        extract_speed_feature=True
+    )
 
-# test_0_test, labels_0_test, speed_0_test = preprocess.load_sample(
-#     datasplit_path=test_path,
-#     file_name=preprocess.test_files[0], #smallest one
-#     telemetry_labels=labels,
-#     normalise=True,
-#     start=5770,
-#     end=6000,
-#     extract_speed_feature=True
-# )
+    return video, tel_labels, speed 
 
-#frame-by-frame inference with speed data
-predictions, hidden_states = preprocess.process_video_inference(
-    model=model,
-    video_data=train_0_test, #replace with either train_0_test or test_0_test
-    device=device,
-    speed_data=speed_0_test,
-    seq_len=1,  #process one frame at a time
-    normalise=False  #already normalised in load_sample
-)
+#process inference
+def evaluate_segment(start, end, split_path, filename, seq_len=1, plot_hidden_states=False):
 
-#plot predictions vs ground truth
-#plot all outputs
-plot_predictions(predictions, labels_0_test)
-#plot individual outputs
-# plot_predictions(predictions, labels_0_test, output_idx=0, output_name="steering_angle")
-# plot_predictions(predictions, labels_0_test, output_idx=1, output_name="car_accel")
+    video, tel_labels, speed = load_segment(start, end, split_path, filename) #load segment
 
-#plot hidden state activity
-# plot_hidden_state_activity(hidden_states, "ltc hidden state activity")
+    predictions, hidden_states = preprocess.process_video_inference(
+        model=model,
+        video_data=video,
+        device=device,
+        speed_data=speed,
+        seq_len=seq_len,
+        normalise=False
+    )
+    plot_predictions(predictions, tel_labels, output_idx=0, output_name="Steering Angles; True vs Predicted") #plot steering angle predictions
+    plot_predictions(predictions, tel_labels, output_idx=1, output_name="Acceleration; True vs Predicted") #plot acceleration predictions
+
+    if plot_hidden_states:
+        plot_hidden_state_activity(hidden_states, "LTC hidden state activity over segment")
+
+#validation files-------------------
+#video 1--------------
+#seg 1 
+evaluate_segment(7321, 9830, val_path, preprocess.val_files[0]) 
+
+#seg 2 
+evaluate_segment(11295, 12000, val_path, preprocess.val_files[0]) 
+
+#seg 3 
+evaluate_segment(15530, 17439, val_path, preprocess.val_files[0]) 
+#-------------
+
+#video 2--------------
+#seg 1 
+evaluate_segment(4559, 7673, val_path, preprocess.val_files[1]) 
+
+#seg 2 
+evaluate_segment(9250, 16475, val_path, preprocess.val_files[1]) 
+
+#seg 3 
+evaluate_segment(39450, 42023, val_path, preprocess.val_files[1]) 
+#-------------
+
+
+#testing files-------------------
+#video 1--------------
+#seg 1 
+evaluate_segment(4578, 9443, test_path, preprocess.test_files[0]) 
+
+#seg 2 
+evaluate_segment(10118, 11100, test_path, preprocess.test_files[0]) 
+
+#seg 3 
+evaluate_segment(12990, 15743, test_path, preprocess.test_files[0]) 
+#-------------
+
+#video 2--------------
+#seg 1 
+evaluate_segment(8231, 17525, test_path, preprocess.test_files[1]) 
+
+#seg 2 
+evaluate_segment(36555, 39830, test_path, preprocess.test_files[1]) 
+
+#seg 3 
+evaluate_segment(46335, 48548, test_path, preprocess.test_files[1]) 
+#-------------
+
+#video 3--------------
+#seg 1 
+evaluate_segment(4697, 5505, test_path, preprocess.test_files[2]) 
+
+#seg 2 
+evaluate_segment(7526, 8435, test_path, preprocess.test_files[2]) 
+
+#seg 3 
+evaluate_segment(14800, 41618, test_path, preprocess.test_files[2]) 
+#-------------
 
 # #visualise saliency map for a subset of frames
 # tensor_test = torch.tensor(test_0_test[700:705], dtype=torch.float32, device=device)

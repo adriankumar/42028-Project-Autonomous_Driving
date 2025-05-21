@@ -25,7 +25,7 @@ os.makedirs(metrics_path, exist_ok=True)
 seq_len = 24  #sequence length for each batch, longer sequences will help with car accel
 seq_stride = 8  #stride between sequences for better continuity, i.e seg_1 = 0-23, then seg_2 = 15-33, maintains a balance of almost n% familiar frames and m% newer frames for training and balancing temporal continuity
 batch_size = 32
-epochs = 200
+epochs = 170 #200
 learning_rate = 0.0005
 conv_grad_scaling = 1.0  #higher scaling means conv learns at a faster rate than LTC
 curve_factor = 0.25  #for weighted loss for steering

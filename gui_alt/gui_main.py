@@ -681,7 +681,7 @@ class VideoGui:
             self.toggle_model()  #stop when reaching the end
             return
             
-        self.current_idx += 1
+        self.current_idx += 1 #track frame context building
         
         #get augmented frame without trajectory for model input
         light_val = float(self.light_slider.get())
@@ -707,7 +707,7 @@ class VideoGui:
             model_input_speed = gb.get_speed(self.telemetry, self.current_idx)
             #also initialise simulated speed to current true speed
             self.model_sim_speed = model_input_speed
-            self.model_context_frames += 1
+            self.model_context_frames += 1 #increment count of accumulated context frames
         else:
             #use simulated speed after context is built
             model_input_speed = self.model_sim_speed
