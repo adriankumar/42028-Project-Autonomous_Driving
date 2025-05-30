@@ -15,5 +15,6 @@ numpy
 matplotlib
 scikit-image
 albumentations
+opencv-python
 tqdm
 networkx
