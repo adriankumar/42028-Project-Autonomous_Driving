@@ -131,7 +131,7 @@ def view_neural_wiring(wiring, figsize=(15, 12), save_path=None, show=False):
     #create the graph
     DG = create_wiring_graph(wiring)
     
-    plt.figure(figsize=figsize, facecolor='#1A1A1C')
+    plt.figure(figsize=figsize) #facecolor='#1A1A1C'
     
     #spiral layout for better visualisation
     pos = nx.spiral_layout(DG, scale=2.0)
@@ -174,7 +174,7 @@ def view_neural_wiring(wiring, figsize=(15, 12), save_path=None, show=False):
     plt.tight_layout()
     
     if save_path:
-        plt.savefig(save_path)
+        plt.savefig(save_path, transparent=True)
     
     if show:
         plt.show()
