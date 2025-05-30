@@ -1,0 +1,19 @@
+#Use python version 3.9 for your virtual environment
+
+# Use PyTorch’s CUDA 12.4 wheels on the official PyTorch index
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+# 1) PyTorch and related packages
+torch
+torchvision
+torchaudio
+
+# 2) All other dependencies
+pygame
+h5py
+numpy
+matplotlib
+scikit-image
+albumentations
+tqdm
+networkx
