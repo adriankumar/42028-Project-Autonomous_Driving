@@ -82,13 +82,13 @@ def calc_path_offset(speed, steering_angle, distances, angle_offset=0):
 def draw_true_path(img, speed, steering_angle):
     distances = np.arange(0., 50.1, 0.5) #distances ahead in 0.5m increments
     offsets, _ = calc_path_offset(speed, -steering_angle, distances)
-    draw_path(img, distances, offsets, (128, 64, 204)) #purple colour
+    draw_path(img, distances, offsets, (226, 32, 238)) #magenta
 
 #draw the path simulated by the steering wheel gui, which still uses the same current speed that true labels does
 def draw_simulated_path(img, speed, steering_angle):
     distances = np.arange(0., 50.1, 0.5) #distances ahead in 0.5m increments
     offsets, _ = calc_path_offset(speed, -steering_angle, distances)
-    draw_path(img, distances, offsets, (214, 89, 92)) #salmon colour
+    draw_path(img, distances, offsets, (69, 245, 177)) #cyan colour
 
 #draw the annotated frame and return it, it's only called when the trajectory display is enabled
 #draws both ground truth and simulated trajectories on the frame

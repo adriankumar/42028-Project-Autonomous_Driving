@@ -117,37 +117,37 @@ def view_neural_wiring(wiring, figsize=(15, 12), save_path=None, show=False):
     
     #stup colours
     neuron_colours = {
-        "inter": "tab:blue",
-        "command": "tab:orange",
-        "motor": "tab:purple",
-        "sensory": "tab:olive",
+        "inter": "#C97039",   
+        "command": "#9C4073",   
+        "motor": "#690DAC",    
+        "sensory": "#ffa500",  
     }
-    
+
     synapse_colours = {
-        "excitatory": "tab:green", 
-        "inhibitory": "tab:red"
+        "excitatory": "#00d13f",  #00d13f #00CED1
+        "inhibitory": "#D10072"   
     }
     
     #create the graph
     DG = create_wiring_graph(wiring)
     
-    plt.figure(figsize=figsize)
+    plt.figure(figsize=figsize) #facecolor='#1A1A1C'
     
     #spiral layout for better visualisation
     pos = nx.spiral_layout(DG, scale=2.0)
     
     #draw neurons
-    for neuron_type, color in neuron_colours.items():
+    for neuron_type, colour in neuron_colours.items():
         if neuron_type == "sensory":
             nodes = [n for n in DG.nodes() if isinstance(n, str) and n.startswith("s")] #sensory neurons
         else:
             nodes = [n for n, d in DG.nodes(data=True) if d.get('neuron_type') == neuron_type] #inter, command and motor neurons
-        nx.draw_networkx_nodes(DG, pos, nodes, node_color=color, node_size=500)
+        nx.draw_networkx_nodes(DG, pos, nodes, node_color=colour, node_size=500)
     
     #draw edges/synapses with correct colours for polarity
-    for edge_type, color in synapse_colours.items():
+    for edge_type, colour in synapse_colours.items():
         edges = [(u, v) for u, v, d in DG.edges(data=True) if d.get('polarity') == edge_type]
-        nx.draw_networkx_edges(DG, pos, edges, edge_color=color, arrows=True, 
+        nx.draw_networkx_edges(DG, pos, edges, edge_color=colour, arrows=True, 
                               connectionstyle='arc3,rad=0.1', width=1.5)
     
     labels = {}
@@ -160,21 +160,21 @@ def view_neural_wiring(wiring, figsize=(15, 12), save_path=None, show=False):
     nx.draw_networkx_labels(DG, pos, labels=labels)
     
     legend_patches = []
-    for neuron_type, color in neuron_colours.items():
+    for neuron_type, colour in neuron_colours.items():
         label = f"{neuron_type.capitalize()} neurons"
-        legend_patches.append(mpatches.Patch(color=color, label=label))
+        legend_patches.append(mpatches.Patch(color=colour, label=label))
     
-    for conn_type, color in synapse_colours.items():
-        legend_patches.append(mpatches.Patch(color=color, label=f"{conn_type} connection"))
+    for conn_type, colour in synapse_colours.items():
+        legend_patches.append(mpatches.Patch(color=colour, label=f"{conn_type} connection"))
     
     plt.legend(handles=legend_patches, loc='upper left', bbox_to_anchor=(1, 1))
     
-    plt.title("Neural Circuit Policy Architecture")
+    plt.title("Neural Circuit Policy Architecture", color="white")
     plt.axis('off')
     plt.tight_layout()
     
     if save_path:
-        plt.savefig(save_path)
+        plt.savefig(save_path, transparent=True)
     
     if show:
         plt.show()

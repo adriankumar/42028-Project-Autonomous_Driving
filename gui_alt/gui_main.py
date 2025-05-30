@@ -57,6 +57,11 @@ class VideoGui:
         self.sim_steering_angle = 0.0
         self.true_car_acceleration = 0.0
         self.sim_car_acceleration = 0.0
+
+         #model speed simulation tracking
+        self.model_sim_speed = 0.0  #speed used for model input (separate from display)
+        self.model_context_frames = 0  #frames since model started
+        self.context_build_threshold = 48  #frames of true speed before switching to simulated
         
         #model running
         self.model_running = False
@@ -239,6 +244,16 @@ class VideoGui:
         self.accel_lbl = tk.Label(accel_frame, text="0.0", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
                                font=("Arial", 11), anchor="w")
         self.accel_lbl.pack(side=tk.LEFT, padx=(5,0))
+
+        #context label
+        context_frame = tk.Frame(self.info_frame, bg=PANEL_COLOUR)
+        context_frame.pack(fill=tk.X, anchor="w", pady=3)
+        context_label = tk.Label(context_frame, text="Context:", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
+                            font=("Arial", 11, "bold"), anchor="w")
+        context_label.pack(side=tk.LEFT)
+        self.context_lbl = tk.Label(context_frame, text="0/48", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
+                                font=("Arial", 11), anchor="w")
+        self.context_lbl.pack(side=tk.LEFT, padx=(5,0))
         
         #options panel (bold title)
         self.options_panel = self._create_panel(self.left_middle_frame, "Options", bold=True)
@@ -425,20 +440,20 @@ class VideoGui:
             #get current true speed
             current_true_speed = gb.get_speed(self.telemetry, self.current_idx)
             
-            #update speed graph - pass model's predicted acceleration when model is running
+            #update speed graph
             if self.model_running:
-                #calculate simulated speed based on acceleration
-                sim_speed = self.speed_graph_obj.calculate_simulated_speed(
-                    current_true_speed,
-                    self.sim_car_acceleration,
-                    self.model_running
-                )
+                #use the actual simulated speed that the model is using for decisions
+                #after context building, otherwise use true speed
+                if self.model_context_frames >= self.context_build_threshold:
+                    display_sim_speed = self.model_sim_speed
+                else:
+                    display_sim_speed = current_true_speed
                 
-                #update with true speed and calculated sim speed
+                #update with true speed and actual model simulated speed
                 speed_img = self.speed_graph_obj.update(
                     self.current_idx, 
                     current_true_speed,
-                    sim_speed,
+                    display_sim_speed,
                     self.model_running
                 )
             else:
@@ -448,12 +463,10 @@ class VideoGui:
                     current_true_speed,
                     model_running=False
                 )
-        else:  #acceleration mode
-            #get current true acceleration
+        else:  #acceleration mode - unchanged
             current_true_accel = self.true_car_acceleration
             
             if self.model_running:
-                #directly use true and predicted acceleration values
                 speed_img = self.speed_graph_obj.update(
                     self.current_idx, 
                     current_true_accel,
@@ -461,7 +474,6 @@ class VideoGui:
                     self.model_running
                 )
             else:
-                #only show true acceleration when model is not running
                 speed_img = self.speed_graph_obj.update(
                     self.current_idx, 
                     current_true_accel,
@@ -580,6 +592,12 @@ class VideoGui:
         if self.saliency_var.get() == 1:
             self.update_saliency_display()
         
+        #update context display if model is running
+        if self.model_running:
+            context_text = f"{min(self.model_context_frames, self.context_build_threshold)}/{self.context_build_threshold}"
+            if hasattr(self, 'context_lbl'):
+                self.context_lbl.config(text=context_text)
+        
         self.update_speed_graph()
 
     def slider_moved(self, val):
@@ -631,6 +649,10 @@ class VideoGui:
             
             m.reset_model_state() #reset hidden state
             
+            #reset model simulation tracking
+            self.model_context_frames = 0
+            self.model_sim_speed = 0.0
+            
             #start playback similar to play button functionality
             if self.after_id:
                 self.root.after_cancel(self.after_id)
@@ -659,7 +681,7 @@ class VideoGui:
             self.toggle_model()  #stop when reaching the end
             return
             
-        self.current_idx += 1
+        self.current_idx += 1 #track frame context building
         
         #get augmented frame without trajectory for model input
         light_val = float(self.light_slider.get())
@@ -679,12 +701,20 @@ class VideoGui:
             noise_val
         )
         
-        #get current speed for model input
-        current_speed = gb.get_speed(self.telemetry, self.current_idx)
+        #determine which speed to use for model input
+        if self.model_context_frames < self.context_build_threshold:
+            #use true speed during context building phase
+            model_input_speed = gb.get_speed(self.telemetry, self.current_idx)
+            #also initialise simulated speed to current true speed
+            self.model_sim_speed = model_input_speed
+            self.model_context_frames += 1 #increment count of accumulated context frames
+        else:
+            #use simulated speed after context is built
+            model_input_speed = self.model_sim_speed
         
-        #predict steering angle and acceleration from augmented frame
+        #predict steering angle and acceleration using the appropriate speed
         predicted_steering, predicted_accel = m.predict_steering_and_acceleration(
-            augmented_frame, current_speed, normalise=True
+            augmented_frame, model_input_speed, normalise=True
         )
         
         #update simulated values if predictions available
@@ -694,6 +724,11 @@ class VideoGui:
             self.driving_controls.set_sim_values(predicted_steering, predicted_accel)
             self.angle_lbl.config(text=f'{predicted_steering:.1f}°')
             self.accel_lbl.config(text=f'{predicted_accel:.2f}')
+            
+            #update simulated speed based on acceleration prediction (only after context building)
+            if self.model_context_frames >= self.context_build_threshold:
+                time_step = 1.0 / self.fps
+                self.model_sim_speed = max(0.0, self.model_sim_speed + (predicted_accel * time_step))
         
         #display the frame (this will apply trajectory visualization if enabled)
         self.display_frame(self.current_idx)

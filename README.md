@@ -1,17 +1,57 @@
-# 42028-Project-Autonomous_Driving
- Project environment for developing autonomous driving AI system for 42028 Assignment 3
+# 🚗 Project Overview
+This project implements a **Level 2 autonomous driving system** using a novel hybrid architecture combining CNNs with Liquid Time-Constant (LTC) cells for highway driving assistance. Our lightweight model processes video frames and vehicle telemetry to predict steering angles and acceleration in real-time. 
 
-Currently in progress
 
-GUI folder - contains the GUI official GUI scripts that will be modified during the project; contains the following:
-- steering_wheel_gui: Simulating steering wheel movements through interface, the angles get written to a text file; TBI - where it reads angles from another text file to move the steering wheel (model predictions)
-- steering_trajectory_calculator: external code file for calculating the steering trajectory display in the video gui annotations
-- video_gui: application for comma.ai dataset visualisation (only works for comma.ai dataset)
-- video_gui_flowchart: flow chart of how cideo_gui application works to track where to modify for scaled development
+- 📄 [Full Project/Assignment Report](https://docs.google.com/document/d/1mZLEZwRek-2oWJMrC03CmJ7OBZdEgZl2rhWGWmrzpeE/edit?usp=sharing) - Contains detailed architecture diagrams, experimental results, and comprehensive analysis.
 
-dataset folder - contains nothing, real dataset files are too large to store on github, they are there for keeping environment organised when pulled
 
-testing_stuff folder - contains scripts to run to test environment set up such as:
-- curvature_test: quick display test that steering curvature calculation works and can be displayed
-- reading_h5_test: quick test to make sure dataset is downloaded properly and its contents can be accessed
-- angle_output: this folder contains the text file that the steering angle from the steering wheel GUI is written to so that it can be read by the video GUI to display the simulated trajectory (green line; which will be model's prediction)
+# 📊 Dataset
+## Comma.ai Dataset
+
+- **Download**:  https://archive.org/details/comma-dataset
+- **GitHub**: https://github.com/commaai/research/tree/master
+- **Size**: ~75GB video data (11 driving videos)
+- **Format**: H5 files containing video frames and telemetry
+- **Features**:
+     - **Input**: *Video frames (160×320×3)* + *speed_abs*;
+    - **Targets**: *steering_angle*, *car_accel*
+
+
+
+# 🧠 Model Architecture
+Our model explores the implementation of LTC Networks [1,2], specifically the WormNet Architecture which was the original [Convolution + LTC cell hybrid](https://github.com/mlech26l/keras-ncp) framework for autonomous steering *[See Video here](https://youtu.be/IlliqYiRhMU?=I1ow4FDprk-BhDM2)*. Our implementation provides the pytorch version for steering and acceleration, with modifications to the architecture for our current dataset; We may potentiallly scale the autonomy level in the future. The full architecture contains:
+
+- **Convolutional Head**: 6-layer CNN for visual feature extraction (48 feature output)
+- **Speed Embedding**: 8-dimensional speed feature representation
+- **LTC Cell**: 98 neurons (56 sensory, 24 inter, 12 command, 2 motor)
+
+## Architecture Diagrams
+### Convolution Head
+![Convolution Head](images\Convolution_Head-structure.png)
+
+---
+---
+### LTC Cell (using NCP wiring)
+![LTC Configuration](images\LTC_neural_structure_transparent.png)
+
+
+*Note: Not all diagrams included- You can view them in the report*
+
+# References:
+
+- [1] Hasani et al. (2020) - [Liquid Time-constant Networks](https://arxiv.org/pdf/2006.04439)
+- [2] Official LTC Implementation - [GitHub](https://github.com/mlech26l/ncps)
+
+*See full reference list in report*
+
+---
+---
+# Team:
+- Adrian Kumar; 24573471; adrian.kumar-1@student.uts.edu
+- Prajakta Kamble; 25233394; Prajakta.bajrang.kamble@student.uts.edu.au
+- Yan Liang; 24419741; yan.liang-2@student.uts.edu.au
+
+---
+
+- Please view [`code-explanation.md`](Code-explanation.md) to get started and to understand the current limitations that need to be addressed in the future
+- Create a virtual environment with python version 3.9 (anaconda recommended), then install `requirements.txt` via `pip install -r requirements.txt`

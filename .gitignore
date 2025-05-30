@@ -2,7 +2,6 @@
 *.pyc
 *.jpg
 *.zip
-*.txt
 *.cache
 *.yaml
 *.csv
