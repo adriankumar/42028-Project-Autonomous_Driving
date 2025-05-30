@@ -27,12 +27,12 @@ Our model explores the implementation of LTC Networks [1,2], specifically the Wo
 
 ## Architecture Diagrams
 ### Convolution Head
-![Convolution Head](images\Convolution_Head-structure.png)
+![Convolution Head](images/Convolution_Head-structure.png)
 
 ---
 ---
 ### LTC Cell (using NCP wiring)
-![LTC Configuration](images\LTC_neural_structure_transparent.png)
+![LTC Configuration](images/LTC_neural_structure_transparent.png)
 
 
 *Note: Not all diagrams included- You can view them in the report*
