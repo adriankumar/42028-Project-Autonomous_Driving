@@ -375,6 +375,9 @@ class ModelVisualisation:
         
         #update connection transparency based on synaptic weights
         if self.current_synaptic_weights is not None:
+            #scaling factor to enhance visibility of small synaptic values
+            transparency_scale = 100.0  #adjust this value as needed
+            
             for conn in self.connections:
                 src_idx = conn['src_model_idx']
                 dst_idx = conn['dst_model_idx']
@@ -383,9 +386,9 @@ class ModelVisualisation:
                 if (src_idx < self.current_synaptic_weights.shape[0] and 
                     dst_idx < self.current_synaptic_weights.shape[1]):
                     
-                    synaptic_value = abs(self.current_synaptic_weights[src_idx, dst_idx])
-                    #normalise to 0-1 range, with values >= 1 being fully opaque
-                    alpha = min(synaptic_value, 1.0)
+                    synaptic_value = self.current_synaptic_weights[src_idx, dst_idx]
+                    #scale and clip for better visibility
+                    alpha = min(abs(synaptic_value) * transparency_scale, 1.0)
                     
                     if (src_idx, dst_idx) in self.connection_lines:
                         self.connection_lines[(src_idx, dst_idx)].set_alpha(alpha)
