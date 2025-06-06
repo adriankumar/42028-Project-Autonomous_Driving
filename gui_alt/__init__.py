@@ -1,1 +1,1 @@
-__all__ = ["gui_main", "gui_backend", "model_handler", "steering_wheel", "steering_trajectory", "speed_graph"]
+__all__ = ["gui_main", "gui_backend", "model_handler", "driving_sim", "steering_trajectory", "speed_graph"]

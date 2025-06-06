@@ -48,6 +48,10 @@ class LTCCell(nn.Module):
         self.ode_unfolds = ode_unfolds  #how many times to approximate hidden state evolution per single time step process, by default every time step has 6 unfolds
         self.epsilon = epsilon  #small constant to prevent division by zero
 
+        #synaptic weight capture for visualisation
+        self.capture_synaptic_weights = False
+        self.last_synaptic_weights = None
+
         #initialise parameters
         self.initialise_parameters()
 
@@ -187,6 +191,11 @@ class LTCCell(nn.Module):
     #compute the synpatic weights - the intuition here is you use fixed parameters to construct an non-fixed synaptic weight between neurons, this is where the liquid part comes with changing 'weights'
     def compute_synapse(self, input, weight, mu, sigma, sparsity_mask, reverse_potential):
         synaptic_activation = (weight * self.sigmoid_gate(input, mu, sigma)) * sparsity_mask 
+
+        #capture synaptic weights if enabled and single batch
+        if self.capture_synaptic_weights and input.shape[0] == 1:
+            self.last_synaptic_weights = synaptic_activation.detach().cpu().numpy()[0]
+
         synaptic_reverse_potential = synaptic_activation * reverse_potential
 
         return torch.sum(synaptic_reverse_potential, dim=1), torch.sum(synaptic_activation, dim=1) #numerator, denominator respectively
@@ -218,3 +227,11 @@ class LTCCell(nn.Module):
             output = output + self.params['output_bias']
         
         return output
+
+    #enable or disable synaptic weight capture for visualisation
+    def set_synaptic_weight_capture(self, enabled=True):
+        self.capture_synaptic_weights = enabled
+
+    #return the last captured synaptic weights
+    def get_synaptic_weights(self):
+        return self.last_synaptic_weights

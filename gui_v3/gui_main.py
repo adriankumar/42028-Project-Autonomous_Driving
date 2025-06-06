@@ -4,8 +4,9 @@ from PIL import Image, ImageTk
 import numpy as np
 import gui_alt.gui_backend as gb
 from gui_alt.driving_sim import DualDrivingControlFrame
-import gui_alt.model_handler as m
+import gui_v3.model_handler as m
 from gui_alt.speed_graph import SpeedGraph
+from gui_v3.model_visualisation_gui import ModelVisualisation
 
 #colour constants
 # BG_COLOUR = "#1E1B2C"  #dark purple
@@ -69,6 +70,10 @@ class VideoGui:
 
         #initialise the speed graph
         self.speed_graph_obj = SpeedGraph(fps=20) #frames were recorded at 20 fps according to comma ai
+        
+        #model visualisation
+        self.model_visualisation = None
+        self.model_vis_img = None
         
         #setup the main container with padding
         self.main_container = tk.Frame(self.root, bg=BG_COLOUR, padx=SPACING, pady=SPACING)
@@ -202,17 +207,17 @@ class VideoGui:
                             font=("Arial", 11, "bold"), anchor="w")
         file_label.pack(side=tk.LEFT)
         self.file_lbl = tk.Label(file_frame, text="-", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                              font=("Arial", 11), anchor="w")
+                            font=("Arial", 11), anchor="w")
         self.file_lbl.pack(side=tk.LEFT, padx=(5,0))
         
         #frame label
         frame_frame = tk.Frame(self.info_frame, bg=PANEL_COLOUR)
         frame_frame.pack(fill=tk.X, anchor="w", pady=3)
         frame_label = tk.Label(frame_frame, text="Frame:", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11, "bold"), anchor="w")
+                            font=("Arial", 11, "bold"), anchor="w")
         frame_label.pack(side=tk.LEFT)
         self.idx_lbl = tk.Label(frame_frame, text="0", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11), anchor="w")
+                            font=("Arial", 11), anchor="w")
         self.idx_lbl.pack(side=tk.LEFT, padx=(5,0))
         
         #time label
@@ -222,27 +227,27 @@ class VideoGui:
                             font=("Arial", 11, "bold"), anchor="w")
         time_label.pack(side=tk.LEFT)
         self.time_lbl = tk.Label(time_frame, text="0.00s", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                              font=("Arial", 11), anchor="w")
+                            font=("Arial", 11), anchor="w")
         self.time_lbl.pack(side=tk.LEFT, padx=(5,0))
         
         #angle label
         angle_frame = tk.Frame(self.info_frame, bg=PANEL_COLOUR)
         angle_frame.pack(fill=tk.X, anchor="w", pady=3)
         angle_label = tk.Label(angle_frame, text="Angle:", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11, "bold"), anchor="w")
+                            font=("Arial", 11, "bold"), anchor="w")
         angle_label.pack(side=tk.LEFT)
         self.angle_lbl = tk.Label(angle_frame, text="0.0°", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                               font=("Arial", 11), anchor="w")
+                            font=("Arial", 11), anchor="w")
         self.angle_lbl.pack(side=tk.LEFT, padx=(5,0))
         
         #accel label
         accel_frame = tk.Frame(self.info_frame, bg=PANEL_COLOUR)
         accel_frame.pack(fill=tk.X, anchor="w", pady=3)
         accel_label = tk.Label(accel_frame, text="Accel:", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11, "bold"), anchor="w")
+                            font=("Arial", 11, "bold"), anchor="w")
         accel_label.pack(side=tk.LEFT)
         self.accel_lbl = tk.Label(accel_frame, text="0.0", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                               font=("Arial", 11), anchor="w")
+                            font=("Arial", 11), anchor="w")
         self.accel_lbl.pack(side=tk.LEFT, padx=(5,0))
 
         #context label
@@ -267,6 +272,8 @@ class VideoGui:
         self.traj_var = tk.IntVar(value=0)
         self.fixed_ylim_var = tk.IntVar(value=1)  #default to fixed ylim
         self.show_accel_var = tk.IntVar(value=0)  #default to speed mode
+        self.toggle_speed_sim_var = tk.IntVar(value=0)  #default unchecked
+        self.model_vis_var = tk.IntVar(value=0)  #default unchecked
         
         self.saliency_cb = tk.Checkbutton(self.options_frame, text="Show Saliency Map", 
                                     variable=self.saliency_var, command=self.toggle_saliency,
@@ -282,20 +289,36 @@ class VideoGui:
                                 font=("Arial", 11))
         self.traj_cb.pack(anchor="w", fill=tk.X, pady=5)
         
-        #add fixed ylim toggle
+        #add toggle speed sim checkbox
+        self.toggle_speed_sim_cb = tk.Checkbutton(self.options_frame, text="Toggle Speed Sim", 
+                                        variable=self.toggle_speed_sim_var, command=self.toggle_speed_sim,
+                                        bg=PANEL_COLOUR, fg=TEXT_COLOUR, selectcolor=BUTTON_COLOUR,
+                                        activebackground=PANEL_COLOUR, activeforeground=TEXT_COLOUR,
+                                        font=("Arial", 11))
+        self.toggle_speed_sim_cb.pack(anchor="w", fill=tk.X, pady=5)
+        
+        #add model visualisation checkbox
+        self.model_vis_cb = tk.Checkbutton(self.options_frame, text="Model Visualisation", 
+                                        variable=self.model_vis_var, command=self.toggle_model_vis,
+                                        bg=PANEL_COLOUR, fg=TEXT_COLOUR, selectcolor=BUTTON_COLOUR,
+                                        activebackground=PANEL_COLOUR, activeforeground=TEXT_COLOUR,
+                                        font=("Arial", 11))
+        self.model_vis_cb.pack(anchor="w", fill=tk.X, pady=5)
+        
+        #add fixed ylim toggle - initially disabled
         self.fixed_ylim_cb = tk.Checkbutton(self.options_frame, text="Fixed Y-Axis Limits", 
                                         variable=self.fixed_ylim_var, command=self.toggle_fixed_ylim,
                                         bg=PANEL_COLOUR, fg=TEXT_COLOUR, selectcolor=BUTTON_COLOUR,
                                         activebackground=PANEL_COLOUR, activeforeground=TEXT_COLOUR,
-                                        font=("Arial", 11))
+                                        font=("Arial", 11), state="disabled")
         self.fixed_ylim_cb.pack(anchor="w", fill=tk.X, pady=5)
         
-        #add acceleration mode toggle
+        #add acceleration mode toggle - initially disabled
         self.show_accel_cb = tk.Checkbutton(self.options_frame, text="Show Acceleration", 
                                         variable=self.show_accel_var, command=self.toggle_graph_mode,
                                         bg=PANEL_COLOUR, fg=TEXT_COLOUR, selectcolor=BUTTON_COLOUR,
                                         activebackground=PANEL_COLOUR, activeforeground=TEXT_COLOUR,
-                                        font=("Arial", 11))
+                                        font=("Arial", 11), state="disabled")
         self.show_accel_cb.pack(anchor="w", fill=tk.X, pady=5)
         
         #center video display frame - ensures perfect centering
@@ -361,37 +384,37 @@ class VideoGui:
         
         #light slider - bold label
         light_label = tk.Label(self.aug_frame, text="Light", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11, "bold"))
+                            font=("Arial", 11, "bold"))
         light_label.pack(anchor="w", pady=(5,0))
         
         self.light_slider = tk.Scale(self.aug_frame, from_=0.0, to=0.5, resolution=0.1, orient=tk.HORIZONTAL,
-                                 command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
-                                 troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
-                                 highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
+                                command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
+                                troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
+                                highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
         self.light_slider.pack(fill=tk.X)
         self.light_slider.config(sliderlength=20)  #make slider button more visible
         
         #dim slider - bold label
         dim_label = tk.Label(self.aug_frame, text="Dim", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                           font=("Arial", 11, "bold"))
+                        font=("Arial", 11, "bold"))
         dim_label.pack(anchor="w", pady=(5,0))
         
         self.dim_slider = tk.Scale(self.aug_frame, from_=0.0, to=0.5, resolution=0.1, orient=tk.HORIZONTAL,
-                               command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
-                               troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
-                               highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
+                            command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
+                            troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
+                            highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
         self.dim_slider.pack(fill=tk.X)
         self.dim_slider.config(sliderlength=20)  #make slider button more visible
         
         #noise slider - bold label
         noise_label = tk.Label(self.aug_frame, text="Noise", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11, "bold"))
+                            font=("Arial", 11, "bold"))
         noise_label.pack(anchor="w", pady=(5,0))
         
         self.noise_slider = tk.Scale(self.aug_frame, from_=0.0, to=0.5, resolution=0.1, orient=tk.HORIZONTAL,
-                                 command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
-                                 troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
-                                 highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
+                                command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
+                                troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
+                                highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
         self.noise_slider.pack(fill=tk.X)
         self.noise_slider.config(sliderlength=20)  #make slider button more visible
         
@@ -413,15 +436,23 @@ class VideoGui:
         black = np.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, 3), dtype=np.uint8)
         self.show_image(black, self.saliency_lbl)
         
-        #right speed graph
-        self.speed_graph_panel = self._create_panel(self.main_container, "Speed graph", bold=True)
-        self.speed_graph_panel.grid(row=2, column=2, sticky="nsew", padx=(SPACING,0), pady=SPACING)
+        #right visualisation panel - contains multiple frames that can be switched
+        self.vis_panel = self._create_panel(self.main_container, "Visualisation", bold=True)
+        self.vis_panel.grid(row=2, column=2, sticky="nsew", padx=(SPACING,0), pady=SPACING)
         
-        #create frame for the speed graph display with fixed size
-        self.speed_graph_frame = tk.Frame(self.speed_graph_panel, bg=PANEL_COLOUR, width=500, height=300)
-        self.speed_graph_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        #create container for switching between different visualisations
+        self.vis_container = tk.Frame(self.vis_panel, bg=PANEL_COLOUR)
+        self.vis_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        #add label for the speed graph display
+        #default placeholder frame
+        self.default_vis_frame = tk.Frame(self.vis_container, bg=PANEL_COLOUR)
+        default_label = tk.Label(self.default_vis_frame, text="Toggle a visualisation", 
+                            bg=PANEL_COLOUR, fg=TEXT_COLOUR, font=("Arial", 14, "bold"))
+        default_label.pack(expand=True)
+        self.default_vis_frame.pack(fill=tk.BOTH, expand=True)
+        
+        #speed graph frame - initially hidden
+        self.speed_graph_frame = tk.Frame(self.vis_container, bg=PANEL_COLOUR, width=500, height=300)
         self.speed_graph_lbl = tk.Label(self.speed_graph_frame, bg=PANEL_COLOUR)
         self.speed_graph_lbl.pack(fill=tk.BOTH, expand=True)
         
@@ -429,10 +460,19 @@ class VideoGui:
         blank_img = self.speed_graph_obj.get_image()
         self.speed_graph_img = ImageTk.PhotoImage(blank_img)
         self.speed_graph_lbl.config(image=self.speed_graph_img)
+        
+        #model visualisation frame - initially hidden
+        self.model_vis_frame = tk.Frame(self.vis_container, bg=PANEL_COLOUR)
+        self.model_vis_lbl = tk.Label(self.model_vis_frame, bg=PANEL_COLOUR)
+        self.model_vis_lbl.pack(fill=tk.BOTH, expand=True)
+        
+        #track current visualisation
+        self.current_vis = "default"
 
 
     def update_speed_graph(self):
-        if self.telemetry is None:
+        #only update if speed sim is enabled
+        if self.toggle_speed_sim_var.get() == 0 or self.telemetry is None:
             return
         
         #determine which mode to display based on checkbox
@@ -483,6 +523,29 @@ class VideoGui:
         #update display with fixed size image
         self.speed_graph_img = ImageTk.PhotoImage(speed_img)
         self.speed_graph_lbl.config(image=self.speed_graph_img)
+
+    def update_model_visualisation(self):
+        #update model visualisation if enabled and available
+        if self.model_visualisation and self.current_vis == "model":
+            try:
+                #get hidden states from model handler
+                if hasattr(m, 'hidden_state') and m.hidden_state is not None:
+                    #get synaptic weights from model
+                    synaptic_weights = m.get_synaptic_weights()
+                    
+                    #update visualisation with current hidden states and synaptic weights
+                    self.model_visualisation.update_neuron_states(m.hidden_state, synaptic_weights)
+                    
+                    #generate updated image from existing figure
+                    vis_img = self.model_visualisation.get_visualisation_image()
+                    
+                    #convert to tkinter format and display
+                    vis_photo = ImageTk.PhotoImage(vis_img)
+                    self.model_vis_lbl.config(image=vis_photo)
+                    self.model_vis_img = vis_photo  #keep reference to prevent garbage collection
+                    
+            except Exception as e:
+                print(f"error updating model visualisation: {e}")
 
     #event handlers and functionalities
     def on_sim_driving_changed(self, control_type, value):
@@ -599,6 +662,7 @@ class VideoGui:
                 self.context_lbl.config(text=context_text)
         
         self.update_speed_graph()
+        self.update_model_visualisation()
 
     def slider_moved(self, val):
         if self.updating_slider or self.frames is None:
@@ -741,6 +805,87 @@ class VideoGui:
         delay = int(1000/self.fps)
         self.after_id = self.root.after(delay, self.model_play_next)
 
+    def toggle_speed_sim(self):
+        #handle speed simulation toggle
+        if self.toggle_speed_sim_var.get() == 1:
+            #speed sim enabled - uncheck model vis if checked
+            if self.model_vis_var.get() == 1:
+                self.model_vis_var.set(0)
+            
+            #enable speed graph controls
+            self.fixed_ylim_cb.config(state="normal")
+            self.show_accel_cb.config(state="normal")
+            
+            #switch to speed graph visualisation
+            self.switch_visualisation("speed")
+        else:
+            #speed sim disabled - disable controls and switch to default
+            self.fixed_ylim_cb.config(state="disabled")
+            self.show_accel_cb.config(state="disabled")
+            self.switch_visualisation("default")
+
+    def toggle_model_vis(self):
+        #handle model visualisation toggle
+        if self.model_vis_var.get() == 1:
+            #model vis enabled - uncheck speed sim if checked
+            if self.toggle_speed_sim_var.get() == 1:
+                self.toggle_speed_sim_var.set(0)
+                #disable speed graph controls
+                self.fixed_ylim_cb.config(state="disabled")
+                self.show_accel_cb.config(state="disabled")
+            
+            #initialise model visualisation if not already done
+            if self.model_visualisation is None:
+                try:
+                    #get model from model handler
+                    if m.model is not None:
+                        self.model_visualisation = ModelVisualisation(m.model)
+                        print("model visualisation initialised successfully")
+                    else:
+                        print("model not loaded in model handler")
+                        self.model_vis_var.set(0)  #uncheck if model not available
+                        return
+                except Exception as e:
+                    print(f"error initialising model visualisation: {e}")
+                    self.model_vis_var.set(0)  #uncheck if initialisation fails
+                    return
+            
+            #enable synaptic weight capture
+            m.enable_synaptic_weight_capture()
+            
+            #switch to model visualisation
+            self.switch_visualisation("model")
+            
+            #update visualisation immediately
+            self.update_model_visualisation()
+        else:
+            #model vis disabled - disable synaptic weight capture and switch to default
+            m.disable_synaptic_weight_capture()
+            self.switch_visualisation("default")
+
+    def switch_visualisation(self, vis_type):
+        #switch between different visualisation frames
+        if self.current_vis == vis_type:
+            return
+        
+        #hide current frame
+        if self.current_vis == "speed":
+            self.speed_graph_frame.pack_forget()
+        elif self.current_vis == "model":
+            self.model_vis_frame.pack_forget()
+        elif self.current_vis == "default":
+            self.default_vis_frame.pack_forget()
+        
+        #show new frame
+        if vis_type == "speed":
+            self.speed_graph_frame.pack(fill=tk.BOTH, expand=True)
+        elif vis_type == "model":
+            self.model_vis_frame.pack(fill=tk.BOTH, expand=True)
+        else:  #default
+            self.default_vis_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.current_vis = vis_type
+
     def toggle_saliency(self):
         if self.saliency_var.get() == 1:
             #update saliency display if model is running
@@ -797,9 +942,16 @@ class VideoGui:
         if hasattr(self, 'speed_graph_obj'):
             self.speed_graph_obj.cleanup()
         
+        #cleanup model visualisation
+        if hasattr(self, 'model_visualisation') and self.model_visualisation:
+            self.model_visualisation.cleanup()
+        
         #clear references to images to help garbage collection
         if hasattr(self, 'speed_graph_img'):
             self.speed_graph_img = None
+        
+        if hasattr(self, 'model_vis_img'):
+            self.model_vis_img = None
         
         if hasattr(self, 'video_lbl') and self.video_lbl:
             self.video_lbl.photo = None
