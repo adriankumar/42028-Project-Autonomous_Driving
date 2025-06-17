@@ -55,3 +55,4 @@ Our model explores the implementation of LTC Networks [1,2], specifically the Wo
 
 - Please view [`code-explanation.md`](Code-explanation.md) to get started and to understand the current limitations that need to be addressed in the future
 - Create a virtual environment with python version 3.9 (anaconda recommended), then install `requirements.txt` via `pip install -r requirements.txt`
+- Project Showcase: Watch our project in action! [Video](https://www.youtube.com/watch?v=FuSemjOSa5k) by Yan Liang.
