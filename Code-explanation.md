@@ -1,5 +1,5 @@
 # 🎮 GUI Driving Simulator
-![GUI Simulator](images\GUI-annotated.png)
+![GUI Simulator](images/GUI-annotated.png)
 
 *See full image [here](https://drive.google.com/file/d/1g5wuwwutD2lAe6sXzzmIfY4dm1mLphKv/view?usp=sharing)*
 
