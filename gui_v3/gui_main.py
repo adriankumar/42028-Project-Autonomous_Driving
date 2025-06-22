@@ -4,8 +4,9 @@ from PIL import Image, ImageTk
 import numpy as np
 import gui_alt.gui_backend as gb
 from gui_alt.driving_sim import DualDrivingControlFrame
-import gui_alt.model_handler as m
+import gui_v3.model_handler as m
 from gui_alt.speed_graph import SpeedGraph
+from gui_v3.model_visualisation_gui import ModelVisualisation
 
 #colour constants
 # BG_COLOUR = "#1E1B2C"  #dark purple
@@ -29,6 +30,7 @@ VIDEO_WIDTH = 864
 VIDEO_HEIGHT = 432
 SPACING = 10  #consistent spacing/padding
 
+#main gui class for video display and model interaction
 class VideoGui:
     def __init__(self, root):
         #store root
@@ -47,6 +49,13 @@ class VideoGui:
         self.updating_slider = False
         self.video_h = VIDEO_HEIGHT
         self.video_w = VIDEO_WIDTH
+        
+        #loop configuration variables
+        self.loop_start_idx = 0
+        self.loop_end_idx = 0
+        self.loop_count = 0
+        self.current_loop_iteration = 0
+        self.loop_mode = False
         
         #saliency window - will be integrated into main layout instead of popup
         self.sal_window = None
@@ -70,6 +79,10 @@ class VideoGui:
         #initialise the speed graph
         self.speed_graph_obj = SpeedGraph(fps=20) #frames were recorded at 20 fps according to comma ai
         
+        #model visualisation
+        self.model_visualisation = None
+        self.model_vis_img = None
+        
         #setup the main container with padding
         self.main_container = tk.Frame(self.root, bg=BG_COLOUR, padx=SPACING, pady=SPACING)
         self.main_container.pack(fill=tk.BOTH, expand=True)
@@ -83,6 +96,7 @@ class VideoGui:
         min_height = VIDEO_HEIGHT*2 + 120  #two displays plus controls and spacing
         self.root.minsize(min_width, min_height)
 
+    #configure the 3x3 grid layout for main container
     def _setup_grid(self):
         #create the 3×3 grid layout (3 sections horizontally and vertically)
         #columns: left panel, center display, right panel
@@ -95,6 +109,7 @@ class VideoGui:
         self.main_container.rowconfigure(1, weight=1)  #middle section - expands
         self.main_container.rowconfigure(2, weight=1)  #bottom section - expands
     
+    #create all gui widgets and layout them in the grid
     def _create_widgets(self):
         #section 1: top row - fixed height controls
         self._create_top_controls()
@@ -105,6 +120,7 @@ class VideoGui:
         #section 3: bottom row - saliency and panels
         self._create_bottom_row()
 
+    #create a standard panel with app styling
     def _create_panel(self, parent, text, bg_colour=PANEL_COLOUR, height=None, width=None, bold=False):
         #create a standard panel with the app styling
         panel = tk.Frame(parent, bg=bg_colour, padx=SPACING, pady=SPACING)
@@ -125,6 +141,7 @@ class VideoGui:
         
         return panel
     
+    #create top control row with load button, playback controls and simulator title
     def _create_top_controls(self):
         #top row - all elements have the same height
         control_height = 70  #increased height to ensure slider fits
@@ -177,6 +194,7 @@ class VideoGui:
         self.simulator_title = self._create_panel(self.main_container, "Driving Simulator", height=control_height, bold=True)
         self.simulator_title.grid(row=0, column=2, sticky="nsew", padx=(SPACING,0), pady=(0,SPACING))
     
+    #create middle row with left panels, video display and driving controls
     def _create_middle_row(self):
         #left panels (stacked in a frame)
         self.left_middle_frame = tk.Frame(self.main_container, bg=BG_COLOUR)
@@ -202,17 +220,17 @@ class VideoGui:
                             font=("Arial", 11, "bold"), anchor="w")
         file_label.pack(side=tk.LEFT)
         self.file_lbl = tk.Label(file_frame, text="-", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                              font=("Arial", 11), anchor="w")
+                            font=("Arial", 11), anchor="w")
         self.file_lbl.pack(side=tk.LEFT, padx=(5,0))
         
         #frame label
         frame_frame = tk.Frame(self.info_frame, bg=PANEL_COLOUR)
         frame_frame.pack(fill=tk.X, anchor="w", pady=3)
         frame_label = tk.Label(frame_frame, text="Frame:", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11, "bold"), anchor="w")
+                            font=("Arial", 11, "bold"), anchor="w")
         frame_label.pack(side=tk.LEFT)
         self.idx_lbl = tk.Label(frame_frame, text="0", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11), anchor="w")
+                            font=("Arial", 11), anchor="w")
         self.idx_lbl.pack(side=tk.LEFT, padx=(5,0))
         
         #time label
@@ -222,27 +240,27 @@ class VideoGui:
                             font=("Arial", 11, "bold"), anchor="w")
         time_label.pack(side=tk.LEFT)
         self.time_lbl = tk.Label(time_frame, text="0.00s", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                              font=("Arial", 11), anchor="w")
+                            font=("Arial", 11), anchor="w")
         self.time_lbl.pack(side=tk.LEFT, padx=(5,0))
         
         #angle label
         angle_frame = tk.Frame(self.info_frame, bg=PANEL_COLOUR)
         angle_frame.pack(fill=tk.X, anchor="w", pady=3)
         angle_label = tk.Label(angle_frame, text="Angle:", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11, "bold"), anchor="w")
+                            font=("Arial", 11, "bold"), anchor="w")
         angle_label.pack(side=tk.LEFT)
         self.angle_lbl = tk.Label(angle_frame, text="0.0°", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                               font=("Arial", 11), anchor="w")
+                            font=("Arial", 11), anchor="w")
         self.angle_lbl.pack(side=tk.LEFT, padx=(5,0))
         
         #accel label
         accel_frame = tk.Frame(self.info_frame, bg=PANEL_COLOUR)
         accel_frame.pack(fill=tk.X, anchor="w", pady=3)
         accel_label = tk.Label(accel_frame, text="Accel:", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11, "bold"), anchor="w")
+                            font=("Arial", 11, "bold"), anchor="w")
         accel_label.pack(side=tk.LEFT)
         self.accel_lbl = tk.Label(accel_frame, text="0.0", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                               font=("Arial", 11), anchor="w")
+                            font=("Arial", 11), anchor="w")
         self.accel_lbl.pack(side=tk.LEFT, padx=(5,0))
 
         #context label
@@ -267,6 +285,8 @@ class VideoGui:
         self.traj_var = tk.IntVar(value=0)
         self.fixed_ylim_var = tk.IntVar(value=1)  #default to fixed ylim
         self.show_accel_var = tk.IntVar(value=0)  #default to speed mode
+        self.toggle_speed_sim_var = tk.IntVar(value=0)  #default unchecked
+        self.model_vis_var = tk.IntVar(value=0)  #default unchecked
         
         self.saliency_cb = tk.Checkbutton(self.options_frame, text="Show Saliency Map", 
                                     variable=self.saliency_var, command=self.toggle_saliency,
@@ -282,20 +302,36 @@ class VideoGui:
                                 font=("Arial", 11))
         self.traj_cb.pack(anchor="w", fill=tk.X, pady=5)
         
-        #add fixed ylim toggle
+        #add toggle speed sim checkbox
+        self.toggle_speed_sim_cb = tk.Checkbutton(self.options_frame, text="Toggle Speed Sim", 
+                                        variable=self.toggle_speed_sim_var, command=self.toggle_speed_sim,
+                                        bg=PANEL_COLOUR, fg=TEXT_COLOUR, selectcolor=BUTTON_COLOUR,
+                                        activebackground=PANEL_COLOUR, activeforeground=TEXT_COLOUR,
+                                        font=("Arial", 11))
+        self.toggle_speed_sim_cb.pack(anchor="w", fill=tk.X, pady=5)
+        
+        #add model visualisation checkbox
+        self.model_vis_cb = tk.Checkbutton(self.options_frame, text="Model Visualisation", 
+                                        variable=self.model_vis_var, command=self.toggle_model_vis,
+                                        bg=PANEL_COLOUR, fg=TEXT_COLOUR, selectcolor=BUTTON_COLOUR,
+                                        activebackground=PANEL_COLOUR, activeforeground=TEXT_COLOUR,
+                                        font=("Arial", 11))
+        self.model_vis_cb.pack(anchor="w", fill=tk.X, pady=5)
+        
+        #add fixed ylim toggle - initially disabled
         self.fixed_ylim_cb = tk.Checkbutton(self.options_frame, text="Fixed Y-Axis Limits", 
                                         variable=self.fixed_ylim_var, command=self.toggle_fixed_ylim,
                                         bg=PANEL_COLOUR, fg=TEXT_COLOUR, selectcolor=BUTTON_COLOUR,
                                         activebackground=PANEL_COLOUR, activeforeground=TEXT_COLOUR,
-                                        font=("Arial", 11))
+                                        font=("Arial", 11), state="disabled")
         self.fixed_ylim_cb.pack(anchor="w", fill=tk.X, pady=5)
         
-        #add acceleration mode toggle
+        #add acceleration mode toggle - initially disabled
         self.show_accel_cb = tk.Checkbutton(self.options_frame, text="Show Acceleration", 
                                         variable=self.show_accel_var, command=self.toggle_graph_mode,
                                         bg=PANEL_COLOUR, fg=TEXT_COLOUR, selectcolor=BUTTON_COLOUR,
                                         activebackground=PANEL_COLOUR, activeforeground=TEXT_COLOUR,
-                                        font=("Arial", 11))
+                                        font=("Arial", 11), state="disabled")
         self.show_accel_cb.pack(anchor="w", fill=tk.X, pady=5)
         
         #center video display frame - ensures perfect centering
@@ -324,12 +360,14 @@ class VideoGui:
         self.driving_controls = DualDrivingControlFrame(self.driving_controls_panel, callback=self.on_sim_driving_changed)
     
 
+    #toggle between fixed and dynamic y-axis limits for speed graph
     def toggle_fixed_ylim(self):
         #toggle between fixed and dynamic y-axis limits
         if hasattr(self, 'speed_graph_obj'):
             self.speed_graph_obj.fixed_ylim = (self.fixed_ylim_var.get() == 1)
             self.update_speed_graph()
     
+    #toggle between speed and acceleration display modes for graph
     def toggle_graph_mode(self):
         #toggle between speed and acceleration display modes
         if hasattr(self, 'speed_graph_obj'):
@@ -350,6 +388,7 @@ class VideoGui:
             #update to refresh graph display
             self.update_speed_graph()
 
+    #create bottom row with augmentation controls, saliency display and visualisation panel
     def _create_bottom_row(self):
         #left augment panel with bold title
         self.augment_panel = self._create_panel(self.main_container, "Augmentation", bold=True)
@@ -361,37 +400,37 @@ class VideoGui:
         
         #light slider - bold label
         light_label = tk.Label(self.aug_frame, text="Light", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11, "bold"))
+                            font=("Arial", 11, "bold"))
         light_label.pack(anchor="w", pady=(5,0))
         
         self.light_slider = tk.Scale(self.aug_frame, from_=0.0, to=0.5, resolution=0.1, orient=tk.HORIZONTAL,
-                                 command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
-                                 troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
-                                 highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
+                                command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
+                                troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
+                                highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
         self.light_slider.pack(fill=tk.X)
         self.light_slider.config(sliderlength=20)  #make slider button more visible
         
         #dim slider - bold label
         dim_label = tk.Label(self.aug_frame, text="Dim", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                           font=("Arial", 11, "bold"))
+                        font=("Arial", 11, "bold"))
         dim_label.pack(anchor="w", pady=(5,0))
         
         self.dim_slider = tk.Scale(self.aug_frame, from_=0.0, to=0.5, resolution=0.1, orient=tk.HORIZONTAL,
-                               command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
-                               troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
-                               highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
+                            command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
+                            troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
+                            highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
         self.dim_slider.pack(fill=tk.X)
         self.dim_slider.config(sliderlength=20)  #make slider button more visible
         
         #noise slider - bold label
         noise_label = tk.Label(self.aug_frame, text="Noise", bg=PANEL_COLOUR, fg=TEXT_COLOUR, 
-                             font=("Arial", 11, "bold"))
+                            font=("Arial", 11, "bold"))
         noise_label.pack(anchor="w", pady=(5,0))
         
         self.noise_slider = tk.Scale(self.aug_frame, from_=0.0, to=0.5, resolution=0.1, orient=tk.HORIZONTAL,
-                                 command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
-                                 troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
-                                 highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
+                                command=self.on_augmentation_changed, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
+                                troughcolor=SLIDER_TROUGH_COLOUR, activebackground=AUG_SLIDER_COLOUR,
+                                highlightthickness=0, font=("Arial", 9), sliderrelief=tk.FLAT)
         self.noise_slider.pack(fill=tk.X)
         self.noise_slider.config(sliderlength=20)  #make slider button more visible
         
@@ -413,15 +452,23 @@ class VideoGui:
         black = np.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, 3), dtype=np.uint8)
         self.show_image(black, self.saliency_lbl)
         
-        #right speed graph
-        self.speed_graph_panel = self._create_panel(self.main_container, "Speed graph", bold=True)
-        self.speed_graph_panel.grid(row=2, column=2, sticky="nsew", padx=(SPACING,0), pady=SPACING)
+        #right visualisation panel - contains multiple frames that can be switched
+        self.vis_panel = self._create_panel(self.main_container, "Visualisation", bold=True)
+        self.vis_panel.grid(row=2, column=2, sticky="nsew", padx=(SPACING,0), pady=SPACING)
         
-        #create frame for the speed graph display with fixed size
-        self.speed_graph_frame = tk.Frame(self.speed_graph_panel, bg=PANEL_COLOUR, width=500, height=300)
-        self.speed_graph_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        #create container for switching between different visualisations
+        self.vis_container = tk.Frame(self.vis_panel, bg=PANEL_COLOUR)
+        self.vis_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        #add label for the speed graph display
+        #default placeholder frame
+        self.default_vis_frame = tk.Frame(self.vis_container, bg=PANEL_COLOUR)
+        default_label = tk.Label(self.default_vis_frame, text="Toggle a visualisation", 
+                            bg=PANEL_COLOUR, fg=TEXT_COLOUR, font=("Arial", 14, "bold"))
+        default_label.pack(expand=True)
+        self.default_vis_frame.pack(fill=tk.BOTH, expand=True)
+        
+        #speed graph frame - initially hidden
+        self.speed_graph_frame = tk.Frame(self.vis_container, bg=PANEL_COLOUR, width=500, height=300)
         self.speed_graph_lbl = tk.Label(self.speed_graph_frame, bg=PANEL_COLOUR)
         self.speed_graph_lbl.pack(fill=tk.BOTH, expand=True)
         
@@ -429,10 +476,19 @@ class VideoGui:
         blank_img = self.speed_graph_obj.get_image()
         self.speed_graph_img = ImageTk.PhotoImage(blank_img)
         self.speed_graph_lbl.config(image=self.speed_graph_img)
+        
+        #model visualisation frame - initially hidden
+        self.model_vis_frame = tk.Frame(self.vis_container, bg=PANEL_COLOUR)
+        self.model_vis_lbl = tk.Label(self.model_vis_frame, bg=PANEL_COLOUR)
+        self.model_vis_lbl.pack(fill=tk.BOTH, expand=True)
+        
+        #track current visualisation
+        self.current_vis = "default"
 
-
+    #update speed graph display with current data
     def update_speed_graph(self):
-        if self.telemetry is None:
+        #only update if speed sim is enabled
+        if self.toggle_speed_sim_var.get() == 0 or self.telemetry is None:
             return
         
         #determine which mode to display based on checkbox
@@ -484,7 +540,31 @@ class VideoGui:
         self.speed_graph_img = ImageTk.PhotoImage(speed_img)
         self.speed_graph_lbl.config(image=self.speed_graph_img)
 
-    #event handlers and functionalities
+    #update model visualisation display with current neuron states
+    def update_model_visualisation(self):
+        #update model visualisation if enabled and available
+        if self.model_visualisation and self.current_vis == "model":
+            try:
+                #get hidden states from model handler
+                if hasattr(m, 'hidden_state') and m.hidden_state is not None:
+                    #get synaptic weights from model
+                    synaptic_weights = m.get_synaptic_weights()
+                    
+                    #update visualisation with current hidden states and synaptic weights
+                    self.model_visualisation.update_neuron_states(m.hidden_state, synaptic_weights)
+                    
+                    #generate updated image from existing figure
+                    vis_img = self.model_visualisation.get_visualisation_image()
+                    
+                    #convert to tkinter format and display
+                    vis_photo = ImageTk.PhotoImage(vis_img)
+                    self.model_vis_lbl.config(image=vis_photo)
+                    self.model_vis_img = vis_photo  #keep reference to prevent garbage collection
+                    
+            except Exception as e:
+                print(f"error updating model visualisation: {e}")
+
+    #handle changes in simulated driving controls from user interaction
     def on_sim_driving_changed(self, control_type, value):
         #update simulated values based on control type
         if control_type == "steering":
@@ -499,6 +579,7 @@ class VideoGui:
             #redisplay current frame to update trajectory
             self.update_display()
     
+    #display numpy array image in specified label widget
     def show_image(self, img_arr, label_widget):
         img = Image.fromarray(img_arr)
         img = img.resize((self.video_w, self.video_h), Image.LANCZOS)
@@ -506,6 +587,7 @@ class VideoGui:
         label_widget.photo = photo  #keeps reference to prevent garbage collection
         label_widget.config(image=photo)
 
+    #load h5 video file and corresponding telemetry data
     def load_file(self):
         path = filedialog.askopenfilename(title='Select h5 file', filetypes=[('h5 files', '*.h5')])
         if not path:
@@ -533,16 +615,19 @@ class VideoGui:
         self.file_lbl.config(text=f'{path.split("/")[-1]}')
         self.display_frame(0)
 
+    #handle augmentation slider changes by updating display
     def on_augmentation_changed(self, *args):
         #update display when augmentation sliders change
         if self.frames is not None:
             self.update_display()
 
+    #refresh display with current frame and settings
     def update_display(self):
         #update display with current frame and settings
         if self.frames is not None:
             self.display_frame(self.current_idx)
 
+    #display specific frame with all current settings applied
     def display_frame(self, idx):
         #get augmentation values
         light_val = float(self.light_slider.get())
@@ -582,10 +667,13 @@ class VideoGui:
             #set true values in driving controls
             self.driving_controls.set_true_values(angle, accel)
         
-        #update slider
-        if not self.updating_slider:
-            self.updating_slider = True
-            self.slider.set(idx)
+        #update slider with error handling to prevent getting stuck
+        try:
+            if not self.updating_slider:
+                self.updating_slider = True
+                self.root.after_idle(lambda: self.slider.set(idx))
+                self.updating_slider = False
+        except Exception:
             self.updating_slider = False
             
         #update saliency if enabled
@@ -599,13 +687,16 @@ class VideoGui:
                 self.context_lbl.config(text=context_text)
         
         self.update_speed_graph()
+        self.update_model_visualisation()
 
+    #handle manual slider movement by user
     def slider_moved(self, val):
         if self.updating_slider or self.frames is None:
             return
         self.current_idx = int(float(val))
         self.display_frame(self.current_idx)
 
+    #toggle play/pause for regular video playback
     def toggle_play(self):
         if not self.playing:
             self.playing = True
@@ -617,6 +708,7 @@ class VideoGui:
             if self.after_id:
                 self.root.after_cancel(self.after_id)
 
+    #advance to next frame during regular playback
     def play_next(self):
         if not self.playing:
             return
@@ -626,20 +718,101 @@ class VideoGui:
         self.current_idx += 1
         self.display_frame(self.current_idx)
         
-        #update slider directly here as well, to ensure it always updates
-        self.updating_slider = True
-        self.slider.set(self.current_idx)
-        self.updating_slider = False
-        
         delay = int(1000/self.fps)
         self.after_id = self.root.after(delay, self.play_next)
 
+    #show popup dialog to configure loop parameters
+    def show_loop_config_dialog(self):
+        #create modal dialog window
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Loop Configuration")
+        dialog.configure(bg=BG_COLOUR)
+        dialog.geometry("300x250")
+        dialog.resizable(False, False)
+        
+        #center dialog on parent window
+        x = self.root.winfo_rootx() + 50
+        y = self.root.winfo_rooty() + 50
+        dialog.geometry(f"+{x}+{y}")
+        
+        #make dialog modal
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        #result variable to track dialog outcome
+        result = {'success': False}
+        
+        #create input fields
+        tk.Label(dialog, text="Start Index:", bg=BG_COLOUR, fg=TEXT_COLOUR, font=("Arial", 11)).pack(pady=5)
+        start_entry = tk.Entry(dialog, font=("Arial", 11))
+        start_entry.pack(pady=5)
+        start_entry.insert(0, str(self.current_idx))
+        
+        tk.Label(dialog, text="End Index:", bg=BG_COLOUR, fg=TEXT_COLOUR, font=("Arial", 11)).pack(pady=5)
+        end_entry = tk.Entry(dialog, font=("Arial", 11))
+        end_entry.pack(pady=5)
+        end_entry.insert(0, str(min(self.current_idx + 100, self.frame_count - 1)))
+        
+        tk.Label(dialog, text="Number of Loops:", bg=BG_COLOUR, fg=TEXT_COLOUR, font=("Arial", 11)).pack(pady=5)
+        loops_entry = tk.Entry(dialog, font=("Arial", 11))
+        loops_entry.pack(pady=5)
+        loops_entry.insert(0, "5")
+        
+        #button frame
+        button_frame = tk.Frame(dialog, bg=BG_COLOUR)
+        button_frame.pack(pady=20)
+        
+        #ok button handler
+        def ok_clicked():
+            try:
+                start_idx = int(start_entry.get())
+                end_idx = int(end_entry.get())
+                loop_count = int(loops_entry.get())
+                
+                #validate inputs
+                if (start_idx < end_idx and 
+                    0 <= start_idx < self.frame_count and 
+                    0 <= end_idx < self.frame_count and
+                    loop_count > 0):
+                    
+                    #store configuration
+                    self.loop_start_idx = start_idx
+                    self.loop_end_idx = end_idx
+                    self.loop_count = loop_count
+                    self.current_loop_iteration = 0
+                    result['success'] = True
+                    dialog.destroy()
+                else:
+                    messagebox.showerror("Invalid Input", "Please check your inputs")
+            except ValueError:
+                messagebox.showerror("Invalid Input", "Please enter valid numeric values")
+        
+        #cancel button handler
+        def cancel_clicked():
+            dialog.destroy()
+        
+        #create buttons with proper tk prefix
+        tk.Button(button_frame, text="OK", command=ok_clicked, bg=BUTTON_COLOUR, fg=TEXT_COLOUR, 
+                  font=("Arial", 11), padx=20).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=cancel_clicked, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
+                  font=("Arial", 11), padx=20).pack(side=tk.LEFT, padx=5)
+        
+        #wait for dialog to close
+        self.root.wait_window(dialog)
+        
+        return result['success']
+
+    #toggle model running state and handle loop configuration
     def toggle_model(self):
         #toggle model runningstate
-        self.model_running = not self.model_running
-        
-        if self.model_running:
-            #start the model
+        if not self.model_running:
+            #show loop configuration dialog before starting
+            if not self.show_loop_config_dialog():
+                return  #user cancelled, don't start model
+            
+            #start the model with loop configuration
+            self.model_running = True
+            self.loop_mode = True
             self.model_btn.config(text='Stop Model')
             self.driving_controls.set_interactable(False)
             
@@ -652,6 +825,10 @@ class VideoGui:
             #reset model simulation tracking
             self.model_context_frames = 0
             self.model_sim_speed = 0.0
+            self.current_loop_iteration = 0
+            
+            #set starting position
+            self.current_idx = self.loop_start_idx
             
             #start playback similar to play button functionality
             if self.after_id:
@@ -661,6 +838,8 @@ class VideoGui:
 
         else:
             #stop the model
+            self.model_running = False
+            self.loop_mode = False
             self.model_btn.config(text='Start Model')
             self.driving_controls.set_interactable(True)
             
@@ -674,14 +853,31 @@ class VideoGui:
 
             m.reset_model_state() #reset hidden state
 
+    #advance to next frame during model playback with loop handling
     def model_play_next(self):
         if not self.model_running:
             return
-        if self.current_idx >= self.frame_count-1:
-            self.toggle_model()  #stop when reaching the end
-            return
             
-        self.current_idx += 1 #track frame context building
+        #check if we've reached the end of the loop
+        if self.current_idx >= self.loop_end_idx:
+            #increment loop iteration counter
+            self.current_loop_iteration += 1
+            
+            #check if we've completed all loops
+            if self.current_loop_iteration >= self.loop_count:
+                self.toggle_model()  #stop model
+                return
+            
+            #reset to start of loop for next iteration
+            self.current_idx = self.loop_start_idx
+            #reset model state for clean loop iteration
+            m.reset_model_state()
+            self.model_context_frames = 0
+            self.model_sim_speed = 0.0
+        else:
+            self.current_idx += 1
+            
+        #track frame context building
         
         #get augmented frame without trajectory for model input
         light_val = float(self.light_slider.get())
@@ -733,14 +929,94 @@ class VideoGui:
         #display the frame (this will apply trajectory visualization if enabled)
         self.display_frame(self.current_idx)
         
-        #update slider directly here as well to ensure it visually updates
-        self.updating_slider = True
-        self.slider.set(self.current_idx)
-        self.updating_slider = False
-        
         delay = int(1000/self.fps)
         self.after_id = self.root.after(delay, self.model_play_next)
 
+    #handle speed simulation toggle for graph display
+    def toggle_speed_sim(self):
+        #handle speed simulation toggle
+        if self.toggle_speed_sim_var.get() == 1:
+            #speed sim enabled - uncheck model vis if checked
+            if self.model_vis_var.get() == 1:
+                self.model_vis_var.set(0)
+            
+            #enable speed graph controls
+            self.fixed_ylim_cb.config(state="normal")
+            self.show_accel_cb.config(state="normal")
+            
+            #switch to speed graph visualisation
+            self.switch_visualisation("speed")
+        else:
+            #speed sim disabled - disable controls and switch to default
+            self.fixed_ylim_cb.config(state="disabled")
+            self.show_accel_cb.config(state="disabled")
+            self.switch_visualisation("default")
+
+    #handle model visualisation toggle
+    def toggle_model_vis(self):
+        #handle model visualisation toggle
+        if self.model_vis_var.get() == 1:
+            #model vis enabled - uncheck speed sim if checked
+            if self.toggle_speed_sim_var.get() == 1:
+                self.toggle_speed_sim_var.set(0)
+                #disable speed graph controls
+                self.fixed_ylim_cb.config(state="disabled")
+                self.show_accel_cb.config(state="disabled")
+            
+            #initialise model visualisation if not already done
+            if self.model_visualisation is None:
+                try:
+                    #get model from model handler
+                    if m.model is not None:
+                        self.model_visualisation = ModelVisualisation(m.model)
+                        print("model visualisation initialised successfully")
+                    else:
+                        print("model not loaded in model handler")
+                        self.model_vis_var.set(0)  #uncheck if model not available
+                        return
+                except Exception as e:
+                    print(f"error initialising model visualisation: {e}")
+                    self.model_vis_var.set(0)  #uncheck if initialisation fails
+                    return
+            
+            #enable synaptic weight capture
+            m.enable_synaptic_weight_capture()
+            
+            #switch to model visualisation
+            self.switch_visualisation("model")
+            
+            #update visualisation immediately
+            self.update_model_visualisation()
+        else:
+            #model vis disabled - disable synaptic weight capture and switch to default
+            m.disable_synaptic_weight_capture()
+            self.switch_visualisation("default")
+
+    #switch between different visualisation frames in right panel
+    def switch_visualisation(self, vis_type):
+        #switch between different visualisation frames
+        if self.current_vis == vis_type:
+            return
+        
+        #hide current frame
+        if self.current_vis == "speed":
+            self.speed_graph_frame.pack_forget()
+        elif self.current_vis == "model":
+            self.model_vis_frame.pack_forget()
+        elif self.current_vis == "default":
+            self.default_vis_frame.pack_forget()
+        
+        #show new frame
+        if vis_type == "speed":
+            self.speed_graph_frame.pack(fill=tk.BOTH, expand=True)
+        elif vis_type == "model":
+            self.model_vis_frame.pack(fill=tk.BOTH, expand=True)
+        else:  #default
+            self.default_vis_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.current_vis = vis_type
+
+    #toggle saliency map display on/off
     def toggle_saliency(self):
         if self.saliency_var.get() == 1:
             #update saliency display if model is running
@@ -750,6 +1026,7 @@ class VideoGui:
             black = np.zeros((self.video_h, self.video_w, 3), dtype=np.uint8)
             self.show_image(black, self.saliency_lbl)
 
+    #update saliency map display with current frame
     def update_saliency_display(self):
         #only update if enabled and frames exist
         if self.saliency_var.get() == 1 and self.frames is not None:
@@ -779,6 +1056,7 @@ class VideoGui:
                 black = np.zeros_like(augmented_frame)
                 self.show_image(black, self.saliency_lbl)
 
+    #cleanup resources when closing application
     def cleanup(self):
         #cleanup pygame resources
         if hasattr(self, 'driving_controls'):
@@ -797,9 +1075,16 @@ class VideoGui:
         if hasattr(self, 'speed_graph_obj'):
             self.speed_graph_obj.cleanup()
         
+        #cleanup model visualisation
+        if hasattr(self, 'model_visualisation') and self.model_visualisation:
+            self.model_visualisation.cleanup()
+        
         #clear references to images to help garbage collection
         if hasattr(self, 'speed_graph_img'):
             self.speed_graph_img = None
+        
+        if hasattr(self, 'model_vis_img'):
+            self.model_vis_img = None
         
         if hasattr(self, 'video_lbl') and self.video_lbl:
             self.video_lbl.photo = None

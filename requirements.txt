@@ -18,3 +18,4 @@ albumentations
 opencv-python
 tqdm
 networkx
+pywebview

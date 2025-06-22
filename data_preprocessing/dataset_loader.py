@@ -184,7 +184,7 @@ class ContinuousSequenceCollator:
 
 def make_continuous_loader(root_dir, split='train',
                          telemetry_keys=None, seq_len=16,
-                         seq_stride=1, batch_size=8, augment_prob=0.5,
+                         seq_stride=16, batch_size=8, augment_prob=0.5,
                          normalise=True, shuffle_files=True,
                          use_test_slices=False, test_frames=1000, 
                          speed_feature=None, excluded_files=None):

@@ -4,11 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from LTC.model.neural_wiring import NeuralCircuitPolicy as ncp
 from LTC.model.convLTC import ConvLTC
+from LTC.model.convLTC_v2 import ConvLTC as ConvLTC_2
 import torch.nn.functional as F
 import cv2
 
 #load convLTC model
-def load_model(checkpoint_path, device=None):
+def load_model(checkpoint_path, v_2=True, device=None):
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
@@ -37,23 +38,41 @@ def load_model(checkpoint_path, device=None):
     )
     
     #build wiring with correct input dimension
-    sensory_size = model_config['num_filters'] * model_config['features_per_filter'] + 8 #additional 8 comes from the speed feature embedding where the final linear layer has output dim 16 -> 8
+    if v_2:
+        sensory_size = model_config['num_filters'] * model_config['features_per_filter'] + 3
+    else:  
+        sensory_size = model_config['num_filters'] * model_config['features_per_filter'] + 8 #additional 8 comes from the speed feature embedding where the final linear layer has output dim 16 -> 8
     wire.build(sensory_size)
     
     #create model
-    model = ConvLTC(
-        wiring=wire,
-        image_height=model_config['image_height'],
-        image_width=model_config['image_width'],
-        num_filters=model_config['num_filters'],
-        features_per_filter=model_config['features_per_filter'],
-        return_sequences=model_config['return_sequences'],
-        input_mapping=model_config['input_mapping'],
-        output_mapping=model_config['output_mapping'],
-        ode_unfolds=model_config['ode_unfolds'],
-        epsilon=model_config.get('epsilon', 1e-8),
-        implicit_constraints=model_config.get('implicit_constraints', False)
-    )
+    if v_2:
+        model = ConvLTC_2(
+            wiring=wire,
+            image_height=model_config['image_height'],
+            image_width=model_config['image_width'],
+            num_filters=model_config['num_filters'],
+            features_per_filter=model_config['features_per_filter'],
+            return_sequences=model_config['return_sequences'],
+            input_mapping=model_config['input_mapping'],
+            output_mapping=model_config['output_mapping'],
+            ode_unfolds=model_config['ode_unfolds'],
+            epsilon=model_config.get('epsilon', 1e-8),
+            implicit_constraints=model_config.get('implicit_constraints', False)
+        )
+    else:
+        model = ConvLTC(
+            wiring=wire,
+            image_height=model_config['image_height'],
+            image_width=model_config['image_width'],
+            num_filters=model_config['num_filters'],
+            features_per_filter=model_config['features_per_filter'],
+            return_sequences=model_config['return_sequences'],
+            input_mapping=model_config['input_mapping'],
+            output_mapping=model_config['output_mapping'],
+            ode_unfolds=model_config['ode_unfolds'],
+            epsilon=model_config.get('epsilon', 1e-8),
+            implicit_constraints=model_config.get('implicit_constraints', False)
+        )
     
     #load state dict
     model.load_state_dict(checkpoint['model_state_dict'])

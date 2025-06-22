@@ -1,3 +1,8 @@
+
+## Updates
+* `gui_v3` now has real-time model visualisation
+* speed calculations/visualisations are now toggleable to prevent over-head calculations during live inference and initial set up of the GUI
+
 # 🚗 Project Overview
 This project implements a **Level 2 autonomous driving system** using a novel hybrid architecture combining CNNs with Liquid Time-Constant (LTC) cells for highway driving assistance. Our lightweight model processes video frames and vehicle telemetry to predict steering angles and acceleration in real-time. 
 
