@@ -30,6 +30,7 @@ VIDEO_WIDTH = 864
 VIDEO_HEIGHT = 432
 SPACING = 10  #consistent spacing/padding
 
+#main gui class for video display and model interaction
 class VideoGui:
     def __init__(self, root):
         #store root
@@ -48,6 +49,13 @@ class VideoGui:
         self.updating_slider = False
         self.video_h = VIDEO_HEIGHT
         self.video_w = VIDEO_WIDTH
+        
+        #loop configuration variables
+        self.loop_start_idx = 0
+        self.loop_end_idx = 0
+        self.loop_count = 0
+        self.current_loop_iteration = 0
+        self.loop_mode = False
         
         #saliency window - will be integrated into main layout instead of popup
         self.sal_window = None
@@ -88,6 +96,7 @@ class VideoGui:
         min_height = VIDEO_HEIGHT*2 + 120  #two displays plus controls and spacing
         self.root.minsize(min_width, min_height)
 
+    #configure the 3x3 grid layout for main container
     def _setup_grid(self):
         #create the 3×3 grid layout (3 sections horizontally and vertically)
         #columns: left panel, center display, right panel
@@ -100,6 +109,7 @@ class VideoGui:
         self.main_container.rowconfigure(1, weight=1)  #middle section - expands
         self.main_container.rowconfigure(2, weight=1)  #bottom section - expands
     
+    #create all gui widgets and layout them in the grid
     def _create_widgets(self):
         #section 1: top row - fixed height controls
         self._create_top_controls()
@@ -110,6 +120,7 @@ class VideoGui:
         #section 3: bottom row - saliency and panels
         self._create_bottom_row()
 
+    #create a standard panel with app styling
     def _create_panel(self, parent, text, bg_colour=PANEL_COLOUR, height=None, width=None, bold=False):
         #create a standard panel with the app styling
         panel = tk.Frame(parent, bg=bg_colour, padx=SPACING, pady=SPACING)
@@ -130,6 +141,7 @@ class VideoGui:
         
         return panel
     
+    #create top control row with load button, playback controls and simulator title
     def _create_top_controls(self):
         #top row - all elements have the same height
         control_height = 70  #increased height to ensure slider fits
@@ -182,6 +194,7 @@ class VideoGui:
         self.simulator_title = self._create_panel(self.main_container, "Driving Simulator", height=control_height, bold=True)
         self.simulator_title.grid(row=0, column=2, sticky="nsew", padx=(SPACING,0), pady=(0,SPACING))
     
+    #create middle row with left panels, video display and driving controls
     def _create_middle_row(self):
         #left panels (stacked in a frame)
         self.left_middle_frame = tk.Frame(self.main_container, bg=BG_COLOUR)
@@ -347,12 +360,14 @@ class VideoGui:
         self.driving_controls = DualDrivingControlFrame(self.driving_controls_panel, callback=self.on_sim_driving_changed)
     
 
+    #toggle between fixed and dynamic y-axis limits for speed graph
     def toggle_fixed_ylim(self):
         #toggle between fixed and dynamic y-axis limits
         if hasattr(self, 'speed_graph_obj'):
             self.speed_graph_obj.fixed_ylim = (self.fixed_ylim_var.get() == 1)
             self.update_speed_graph()
     
+    #toggle between speed and acceleration display modes for graph
     def toggle_graph_mode(self):
         #toggle between speed and acceleration display modes
         if hasattr(self, 'speed_graph_obj'):
@@ -373,6 +388,7 @@ class VideoGui:
             #update to refresh graph display
             self.update_speed_graph()
 
+    #create bottom row with augmentation controls, saliency display and visualisation panel
     def _create_bottom_row(self):
         #left augment panel with bold title
         self.augment_panel = self._create_panel(self.main_container, "Augmentation", bold=True)
@@ -469,7 +485,7 @@ class VideoGui:
         #track current visualisation
         self.current_vis = "default"
 
-
+    #update speed graph display with current data
     def update_speed_graph(self):
         #only update if speed sim is enabled
         if self.toggle_speed_sim_var.get() == 0 or self.telemetry is None:
@@ -524,6 +540,7 @@ class VideoGui:
         self.speed_graph_img = ImageTk.PhotoImage(speed_img)
         self.speed_graph_lbl.config(image=self.speed_graph_img)
 
+    #update model visualisation display with current neuron states
     def update_model_visualisation(self):
         #update model visualisation if enabled and available
         if self.model_visualisation and self.current_vis == "model":
@@ -547,7 +564,7 @@ class VideoGui:
             except Exception as e:
                 print(f"error updating model visualisation: {e}")
 
-    #event handlers and functionalities
+    #handle changes in simulated driving controls from user interaction
     def on_sim_driving_changed(self, control_type, value):
         #update simulated values based on control type
         if control_type == "steering":
@@ -562,6 +579,7 @@ class VideoGui:
             #redisplay current frame to update trajectory
             self.update_display()
     
+    #display numpy array image in specified label widget
     def show_image(self, img_arr, label_widget):
         img = Image.fromarray(img_arr)
         img = img.resize((self.video_w, self.video_h), Image.LANCZOS)
@@ -569,6 +587,7 @@ class VideoGui:
         label_widget.photo = photo  #keeps reference to prevent garbage collection
         label_widget.config(image=photo)
 
+    #load h5 video file and corresponding telemetry data
     def load_file(self):
         path = filedialog.askopenfilename(title='Select h5 file', filetypes=[('h5 files', '*.h5')])
         if not path:
@@ -596,16 +615,19 @@ class VideoGui:
         self.file_lbl.config(text=f'{path.split("/")[-1]}')
         self.display_frame(0)
 
+    #handle augmentation slider changes by updating display
     def on_augmentation_changed(self, *args):
         #update display when augmentation sliders change
         if self.frames is not None:
             self.update_display()
 
+    #refresh display with current frame and settings
     def update_display(self):
         #update display with current frame and settings
         if self.frames is not None:
             self.display_frame(self.current_idx)
 
+    #display specific frame with all current settings applied
     def display_frame(self, idx):
         #get augmentation values
         light_val = float(self.light_slider.get())
@@ -645,10 +667,13 @@ class VideoGui:
             #set true values in driving controls
             self.driving_controls.set_true_values(angle, accel)
         
-        #update slider
-        if not self.updating_slider:
-            self.updating_slider = True
-            self.slider.set(idx)
+        #update slider with error handling to prevent getting stuck
+        try:
+            if not self.updating_slider:
+                self.updating_slider = True
+                self.root.after_idle(lambda: self.slider.set(idx))
+                self.updating_slider = False
+        except Exception:
             self.updating_slider = False
             
         #update saliency if enabled
@@ -664,12 +689,14 @@ class VideoGui:
         self.update_speed_graph()
         self.update_model_visualisation()
 
+    #handle manual slider movement by user
     def slider_moved(self, val):
         if self.updating_slider or self.frames is None:
             return
         self.current_idx = int(float(val))
         self.display_frame(self.current_idx)
 
+    #toggle play/pause for regular video playback
     def toggle_play(self):
         if not self.playing:
             self.playing = True
@@ -681,6 +708,7 @@ class VideoGui:
             if self.after_id:
                 self.root.after_cancel(self.after_id)
 
+    #advance to next frame during regular playback
     def play_next(self):
         if not self.playing:
             return
@@ -690,20 +718,101 @@ class VideoGui:
         self.current_idx += 1
         self.display_frame(self.current_idx)
         
-        #update slider directly here as well, to ensure it always updates
-        self.updating_slider = True
-        self.slider.set(self.current_idx)
-        self.updating_slider = False
-        
         delay = int(1000/self.fps)
         self.after_id = self.root.after(delay, self.play_next)
 
+    #show popup dialog to configure loop parameters
+    def show_loop_config_dialog(self):
+        #create modal dialog window
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Loop Configuration")
+        dialog.configure(bg=BG_COLOUR)
+        dialog.geometry("300x250")
+        dialog.resizable(False, False)
+        
+        #center dialog on parent window
+        x = self.root.winfo_rootx() + 50
+        y = self.root.winfo_rooty() + 50
+        dialog.geometry(f"+{x}+{y}")
+        
+        #make dialog modal
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        #result variable to track dialog outcome
+        result = {'success': False}
+        
+        #create input fields
+        tk.Label(dialog, text="Start Index:", bg=BG_COLOUR, fg=TEXT_COLOUR, font=("Arial", 11)).pack(pady=5)
+        start_entry = tk.Entry(dialog, font=("Arial", 11))
+        start_entry.pack(pady=5)
+        start_entry.insert(0, str(self.current_idx))
+        
+        tk.Label(dialog, text="End Index:", bg=BG_COLOUR, fg=TEXT_COLOUR, font=("Arial", 11)).pack(pady=5)
+        end_entry = tk.Entry(dialog, font=("Arial", 11))
+        end_entry.pack(pady=5)
+        end_entry.insert(0, str(min(self.current_idx + 100, self.frame_count - 1)))
+        
+        tk.Label(dialog, text="Number of Loops:", bg=BG_COLOUR, fg=TEXT_COLOUR, font=("Arial", 11)).pack(pady=5)
+        loops_entry = tk.Entry(dialog, font=("Arial", 11))
+        loops_entry.pack(pady=5)
+        loops_entry.insert(0, "5")
+        
+        #button frame
+        button_frame = tk.Frame(dialog, bg=BG_COLOUR)
+        button_frame.pack(pady=20)
+        
+        #ok button handler
+        def ok_clicked():
+            try:
+                start_idx = int(start_entry.get())
+                end_idx = int(end_entry.get())
+                loop_count = int(loops_entry.get())
+                
+                #validate inputs
+                if (start_idx < end_idx and 
+                    0 <= start_idx < self.frame_count and 
+                    0 <= end_idx < self.frame_count and
+                    loop_count > 0):
+                    
+                    #store configuration
+                    self.loop_start_idx = start_idx
+                    self.loop_end_idx = end_idx
+                    self.loop_count = loop_count
+                    self.current_loop_iteration = 0
+                    result['success'] = True
+                    dialog.destroy()
+                else:
+                    messagebox.showerror("Invalid Input", "Please check your inputs")
+            except ValueError:
+                messagebox.showerror("Invalid Input", "Please enter valid numeric values")
+        
+        #cancel button handler
+        def cancel_clicked():
+            dialog.destroy()
+        
+        #create buttons with proper tk prefix
+        tk.Button(button_frame, text="OK", command=ok_clicked, bg=BUTTON_COLOUR, fg=TEXT_COLOUR, 
+                  font=("Arial", 11), padx=20).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=cancel_clicked, bg=PANEL_COLOUR, fg=TEXT_COLOUR,
+                  font=("Arial", 11), padx=20).pack(side=tk.LEFT, padx=5)
+        
+        #wait for dialog to close
+        self.root.wait_window(dialog)
+        
+        return result['success']
+
+    #toggle model running state and handle loop configuration
     def toggle_model(self):
         #toggle model runningstate
-        self.model_running = not self.model_running
-        
-        if self.model_running:
-            #start the model
+        if not self.model_running:
+            #show loop configuration dialog before starting
+            if not self.show_loop_config_dialog():
+                return  #user cancelled, don't start model
+            
+            #start the model with loop configuration
+            self.model_running = True
+            self.loop_mode = True
             self.model_btn.config(text='Stop Model')
             self.driving_controls.set_interactable(False)
             
@@ -716,6 +825,10 @@ class VideoGui:
             #reset model simulation tracking
             self.model_context_frames = 0
             self.model_sim_speed = 0.0
+            self.current_loop_iteration = 0
+            
+            #set starting position
+            self.current_idx = self.loop_start_idx
             
             #start playback similar to play button functionality
             if self.after_id:
@@ -725,6 +838,8 @@ class VideoGui:
 
         else:
             #stop the model
+            self.model_running = False
+            self.loop_mode = False
             self.model_btn.config(text='Start Model')
             self.driving_controls.set_interactable(True)
             
@@ -738,14 +853,31 @@ class VideoGui:
 
             m.reset_model_state() #reset hidden state
 
+    #advance to next frame during model playback with loop handling
     def model_play_next(self):
         if not self.model_running:
             return
-        if self.current_idx >= self.frame_count-1:
-            self.toggle_model()  #stop when reaching the end
-            return
             
-        self.current_idx += 1 #track frame context building
+        #check if we've reached the end of the loop
+        if self.current_idx >= self.loop_end_idx:
+            #increment loop iteration counter
+            self.current_loop_iteration += 1
+            
+            #check if we've completed all loops
+            if self.current_loop_iteration >= self.loop_count:
+                self.toggle_model()  #stop model
+                return
+            
+            #reset to start of loop for next iteration
+            self.current_idx = self.loop_start_idx
+            #reset model state for clean loop iteration
+            m.reset_model_state()
+            self.model_context_frames = 0
+            self.model_sim_speed = 0.0
+        else:
+            self.current_idx += 1
+            
+        #track frame context building
         
         #get augmented frame without trajectory for model input
         light_val = float(self.light_slider.get())
@@ -797,14 +929,10 @@ class VideoGui:
         #display the frame (this will apply trajectory visualization if enabled)
         self.display_frame(self.current_idx)
         
-        #update slider directly here as well to ensure it visually updates
-        self.updating_slider = True
-        self.slider.set(self.current_idx)
-        self.updating_slider = False
-        
         delay = int(1000/self.fps)
         self.after_id = self.root.after(delay, self.model_play_next)
 
+    #handle speed simulation toggle for graph display
     def toggle_speed_sim(self):
         #handle speed simulation toggle
         if self.toggle_speed_sim_var.get() == 1:
@@ -824,6 +952,7 @@ class VideoGui:
             self.show_accel_cb.config(state="disabled")
             self.switch_visualisation("default")
 
+    #handle model visualisation toggle
     def toggle_model_vis(self):
         #handle model visualisation toggle
         if self.model_vis_var.get() == 1:
@@ -863,6 +992,7 @@ class VideoGui:
             m.disable_synaptic_weight_capture()
             self.switch_visualisation("default")
 
+    #switch between different visualisation frames in right panel
     def switch_visualisation(self, vis_type):
         #switch between different visualisation frames
         if self.current_vis == vis_type:
@@ -886,6 +1016,7 @@ class VideoGui:
         
         self.current_vis = vis_type
 
+    #toggle saliency map display on/off
     def toggle_saliency(self):
         if self.saliency_var.get() == 1:
             #update saliency display if model is running
@@ -895,6 +1026,7 @@ class VideoGui:
             black = np.zeros((self.video_h, self.video_w, 3), dtype=np.uint8)
             self.show_image(black, self.saliency_lbl)
 
+    #update saliency map display with current frame
     def update_saliency_display(self):
         #only update if enabled and frames exist
         if self.saliency_var.get() == 1 and self.frames is not None:
@@ -924,6 +1056,7 @@ class VideoGui:
                 black = np.zeros_like(augmented_frame)
                 self.show_image(black, self.saliency_lbl)
 
+    #cleanup resources when closing application
     def cleanup(self):
         #cleanup pygame resources
         if hasattr(self, 'driving_controls'):

@@ -4,7 +4,8 @@ from data_preprocessing.model_utilities import load_model
 import cv2
 
 #hardcoded path to model
-MODEL_PATH = r"LTC\checkpoint_weights\model_epoch170.pt"
+MODEL_PATH = r"LTC\checkpoint_weights\model_epoch170.pt" #set v_2 to false if using this model path
+# MODEL_PATH = r"LTC\checkpoint_weights_v2\model_epoch100.pt" #set v_2 = true if using this one
 #sequence length for model input
 SEQ_LEN = 1  #change this to experiment with different sequence lengths
 #device for model inference
@@ -21,7 +22,7 @@ def load_steering_model():
     global model
     if model is None:
         try:
-            model = load_model(MODEL_PATH, device=DEVICE)
+            model = load_model(MODEL_PATH, v_2=False, device=DEVICE)
             #if SEQ_LEN = 1, we want only the last prediction
             if SEQ_LEN == 1:
                 model.return_sequences = False

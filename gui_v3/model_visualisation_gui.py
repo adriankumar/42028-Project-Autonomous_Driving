@@ -376,7 +376,7 @@ class ModelVisualisation:
         #update connection transparency based on synaptic weights
         if self.current_synaptic_weights is not None:
             #scaling factor to enhance visibility of small synaptic values
-            transparency_scale = 100.0  #adjust this value as needed
+            transparency_scale = 10.0  #adjust this value as needed
             
             for conn in self.connections:
                 src_idx = conn['src_model_idx']
