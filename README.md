@@ -1,6 +1,9 @@
 
 ## Updates
 * `gui_v3` now has real-time model visualisation
+
+![GUI-model-visualisation](images\model-GUI-live-visualisation.png)
+
 * speed calculations/visualisations are now toggleable to prevent over-head calculations during live inference and initial set up of the GUI
 
 # 🚗 Project Overview
